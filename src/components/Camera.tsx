@@ -71,8 +71,8 @@ export default function Camera({ onCapture }: CameraProps) {
       const range = whitePoint - blackPoint;
       // Exposure compensation: ±80px shift
       const expShift = exposureRef.current * 0.8;
-      // Contrast: base 2.6, range 0.6..4.6
-      const contrastMult = 2.6 + contrastRef.current * 0.02;
+      // Contrast: base 3.8, range 1.8..5.8
+      const contrastMult = 3.8 + contrastRef.current * 0.02;
 
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
