@@ -13,8 +13,6 @@ export default function Camera({ onCapture }: CameraProps) {
   const [isFlashing, setIsFlashing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shotCount, setShotCount] = useState(0);
-  const [isoValue] = useState(400);
-  const [aperture] = useState('f/2.8');
   const [time, setTime] = useState('');
 
   useEffect(() => {
@@ -38,15 +36,11 @@ export default function Camera({ onCapture }: CameraProps) {
         animFrameRef.current = requestAnimationFrame(render);
         return;
       }
-
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
-
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         const contrasted = Math.min(255, Math.max(0, (gray - 128) * 2.2 + 128));
@@ -56,7 +50,6 @@ export default function Camera({ onCapture }: CameraProps) {
         data[i + 1] = final;
         data[i + 2] = final;
       }
-
       ctx.putImageData(imageData, 0, 0);
       animFrameRef.current = requestAnimationFrame(render);
     };
@@ -71,7 +64,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } }
+        video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1920 } }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -103,14 +96,11 @@ export default function Camera({ onCapture }: CameraProps) {
   const capturePhoto = useCallback(() => {
     const canvas = previewCanvasRef.current;
     if (!canvas || !isStreaming) return;
-
     const photoData = canvas.toDataURL('image/jpeg', 0.92);
-
     const link = document.createElement('a');
     link.href = photoData;
     link.download = `obscura_${Date.now()}.jpg`;
     link.click();
-
     setIsFlashing(true);
     setTimeout(() => setIsFlashing(false), 300);
     setShotCount(prev => prev + 1);
@@ -118,132 +108,123 @@ export default function Camera({ onCapture }: CameraProps) {
   }, [isStreaming, onCapture]);
 
   return (
-    <div className="flex flex-col items-center gap-0">
-      {/* Camera body top */}
-      <div className="w-full leather-bg px-6 pt-4 pb-2 flex items-center justify-between border-b border-copper/20">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 border border-zinc-600 flex items-center justify-center">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-zinc-400 to-zinc-600 border border-zinc-500" />
+    <div
+      className="relative w-full overflow-hidden"
+      style={{ height: 'calc(100dvh - 45px)', background: '#000' }}
+    >
+      {/* Flash */}
+      {isFlashing && (
+        <div className="absolute inset-0 bg-white z-30 animate-shutter-flash pointer-events-none" />
+      )}
+
+      {/* Hidden video */}
+      <video ref={videoRef} className="hidden" playsInline muted />
+
+      {/* Live canvas — fills full area */}
+      <canvas
+        ref={previewCanvasRef}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ display: isStreaming ? 'block' : 'none' }}
+      />
+
+      {/* Idle */}
+      {!isStreaming && !error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950">
+          <div className="w-20 h-20 rounded-full border-2 border-copper/40 flex items-center justify-center">
+            <Icon name="Camera" size={36} className="text-copper/50" />
           </div>
-          <span className="font-special text-copper text-xl tracking-widest">OBSCURA</span>
+          <p className="font-special text-copper/50 text-sm tracking-widest">ОБЪЕКТИВ ЗАКРЫТ</p>
+          <button
+            onClick={startCamera}
+            className="mt-4 px-8 py-3 font-mono-film text-xs tracking-widest text-black"
+            style={{
+              background: 'linear-gradient(135deg, #d4a054, #b87333)',
+              border: '1px solid #8a5a20',
+            }}
+          >
+            ВКЛЮЧИТЬ
+          </button>
         </div>
-        <div className="font-mono-film text-xs text-copper/60 flex flex-col items-end gap-0.5">
-          <span>ISO {isoValue}</span>
-          <span>{aperture}</span>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950">
+          <Icon name="CameraOff" size={32} className="text-red-700/70" />
+          <p className="font-mono-film text-red-700/70 text-xs text-center px-8">{error}</p>
         </div>
-      </div>
+      )}
 
-      {/* Viewfinder area */}
-      <div className="w-full">
-        <div
-          className="viewfinder crosshair relative w-full overflow-hidden"
-          style={{ aspectRatio: '4/3', background: '#000' }}
-        >
-          {isFlashing && (
-            <div className="absolute inset-0 bg-white z-20 animate-shutter-flash pointer-events-none" />
-          )}
-
-          <video ref={videoRef} className="hidden" playsInline muted />
-
-          <canvas
-            ref={previewCanvasRef}
-            className="w-full h-full object-cover"
-            style={{ display: isStreaming ? 'block' : 'none' }}
+      {/* HUD — top */}
+      {isStreaming && (
+        <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
+          {/* Top gradient fade */}
+          <div
+            className="w-full h-20 pointer-events-none"
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)' }}
           />
-
-          {!isStreaming && !error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950">
-              <div className="w-16 h-16 rounded-full border-2 border-copper/40 flex items-center justify-center">
-                <Icon name="Camera" size={28} className="text-copper/50" />
-              </div>
-              <p className="font-special text-copper/50 text-sm tracking-widest">ОБЪЕКТИВ ЗАКРЫТ</p>
+          <div className="absolute top-3 left-0 right-0 px-5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-red-600 animate-blink" />
+              <span className="font-mono-film text-xs text-white/70">REC</span>
             </div>
-          )}
-
-          {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950">
-              <Icon name="CameraOff" size={32} className="text-red-700/70" />
-              <p className="font-mono-film text-red-700/70 text-xs text-center px-4">{error}</p>
-            </div>
-          )}
-
-          {isStreaming && (
-            <div className="absolute inset-0 pointer-events-none z-10">
-              <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-copper/70" />
-              <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-copper/70" />
-              <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-copper/70" />
-              <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-copper/70" />
-
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-red-600 animate-blink" />
-                <span className="font-mono-film text-xs text-white/70">REC</span>
-              </div>
-
-              <div className="absolute bottom-2 left-0 right-0 px-4 flex items-center justify-between">
-                <span className="font-mono-film text-xs text-copper/60">{time}</span>
-                <span className="font-mono-film text-xs text-copper/60">
-                  {String(shotCount).padStart(3, '0')} / 036
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Camera body bottom — controls */}
-      <div className="w-full leather-bg px-6 pt-3 pb-5 flex items-center justify-between border-t border-copper/20">
-        {/* Left — film strip decoration */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex gap-1">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="w-3 h-1.5 rounded-sm bg-zinc-800 border border-zinc-700" />
-            ))}
+            <span className="font-mono-film text-xs text-copper/70">{time}</span>
+            <span className="font-mono-film text-xs text-copper/60">
+              {String(shotCount).padStart(3, '0')} / 036
+            </span>
           </div>
-          <span className="font-mono-film text-copper/40 text-xs">FILM</span>
-        </div>
 
-        {/* Center — shutter */}
-        <div className="flex flex-col items-center gap-2">
-          {isStreaming ? (
+          {/* Corner brackets */}
+          <div className="absolute top-10 left-5 w-7 h-7 border-t-2 border-l-2 border-copper/60" />
+          <div className="absolute top-10 right-5 w-7 h-7 border-t-2 border-r-2 border-copper/60" />
+        </div>
+      )}
+
+      {/* Bottom corner brackets */}
+      {isStreaming && (
+        <div className="absolute bottom-28 left-0 right-0 z-10 pointer-events-none">
+          <div className="absolute bottom-0 left-5 w-7 h-7 border-b-2 border-l-2 border-copper/60" />
+          <div className="absolute bottom-0 right-5 w-7 h-7 border-b-2 border-r-2 border-copper/60" />
+        </div>
+      )}
+
+      {/* Bottom controls — over the viewfinder */}
+      {isStreaming && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-20"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 60%, transparent)' }}
+        >
+          <div className="flex items-center justify-between px-8 pb-8 pt-12">
+            {/* Counter */}
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex gap-1">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-2.5 h-1 rounded-sm bg-zinc-700 border border-zinc-600" />
+                ))}
+              </div>
+              <span className="font-mono-film text-copper/40 text-xs">FILM</span>
+            </div>
+
+            {/* Shutter */}
             <button
               onClick={capturePhoto}
-              className="shutter-btn w-16 h-16 rounded-full cursor-pointer"
+              className="shutter-btn w-20 h-20 rounded-full cursor-pointer"
               title="Снять фото"
             />
-          ) : (
-            <button
-              onClick={startCamera}
-              className="w-16 h-16 rounded-full cursor-pointer flex items-center justify-center"
-              style={{
-                background: 'radial-gradient(circle at 35% 35%, #6b6b6b, #3a3a3a 50%, #1a1a1a)',
-                border: '2px solid #555',
-                boxShadow: '0 0 0 4px #1a1a1a, 0 0 0 6px #555, 0 4px 16px rgba(0,0,0,0.8)',
-              }}
-              title="Включить камеру"
-            >
-              <Icon name="Power" size={22} className="text-copper/80" />
-            </button>
-          )}
-          <span className="font-mono-film text-copper/50 text-xs tracking-widest">
-            {isStreaming ? 'СНЯТЬ' : 'ВКЛ'}
-          </span>
-        </div>
 
-        {/* Right — stop button */}
-        <div className="flex flex-col items-end gap-1.5">
-          {isStreaming && (
+            {/* Stop */}
             <button
               onClick={stopCamera}
-              className="flex items-center gap-1 text-copper/40 hover:text-copper/70 transition-colors"
-              title="Закрыть камеру"
+              className="flex flex-col items-center gap-1 text-copper/40 hover:text-copper/70 transition-colors"
             >
-              <Icon name="X" size={12} />
-              <span className="font-mono-film text-xs">СТОП</span>
+              <div className="w-10 h-10 rounded-full border border-zinc-700 flex items-center justify-center">
+                <Icon name="X" size={16} className="text-zinc-500" />
+              </div>
+              <span className="font-mono-film text-xs text-zinc-600">СТОП</span>
             </button>
-          )}
-          <div className="w-6 h-6 rounded-full border border-zinc-700 bg-zinc-900" />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
