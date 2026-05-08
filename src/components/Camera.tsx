@@ -78,7 +78,7 @@ export default function Camera({ onCapture }: CameraProps) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         // Soft S-curve: strong in shadows/highlights, gentle in midtones
         const t = gray / 255;
-        const soft = t + (contrastMult - 1) * 0.15 * Math.sin(Math.PI * t) * (t - 0.5);
+        const soft = t + (contrastMult - 1) * 0.5 * Math.sin(Math.PI * t) * (t - 0.5);
         // Crush shadows+midtones: darken tones below 0.75 with power curve
         const shadowed = soft < 0.75 ? Math.pow(soft / 0.75, 2.0) * 0.75 : soft;
         const contrasted = Math.min(255, Math.max(0, shadowed * 255));
