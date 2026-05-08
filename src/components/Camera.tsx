@@ -8,7 +8,6 @@ interface CameraProps {
 export default function Camera({ onCapture }: CameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const captureCanvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -17,8 +16,6 @@ export default function Camera({ onCapture }: CameraProps) {
   const [isoValue] = useState(400);
   const [aperture] = useState('f/2.8');
   const [time, setTime] = useState('');
-  const [aeLocked, setAeLocked] = useState(false);
-  const aeCompensationRef = useRef(0);
 
   useEffect(() => {
     const tick = () => {
@@ -30,7 +27,6 @@ export default function Camera({ onCapture }: CameraProps) {
     return () => clearInterval(id);
   }, []);
 
-  // Live preview loop — renders B&W + contrast + noise each frame
   const startPreviewLoop = useCallback((video: HTMLVideoElement) => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
@@ -51,26 +47,9 @@ export default function Camera({ onCapture }: CameraProps) {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      // If AE not locked — measure current brightness and update compensation
-      if (!aeCompensationRef.current) aeCompensationRef.current = 0;
-
-      if (!aeLocked) {
-        let sum = 0;
-        const step = 40;
-        let count = 0;
-        for (let i = 0; i < data.length; i += 4 * step) {
-          sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          count++;
-        }
-        aeCompensationRef.current = 128 - (sum / count);
-      }
-
-      const comp = aeCompensationRef.current;
-
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        const compensated = gray + comp;
-        const contrasted = Math.min(255, Math.max(0, (compensated - 128) * 2.2 + 128));
+        const contrasted = Math.min(255, Math.max(0, (gray - 128) * 2.2 + 128));
         const noise = (Math.random() - 0.5) * 50;
         const final = Math.min(255, Math.max(0, contrasted + noise));
         data[i] = final;
@@ -83,7 +62,7 @@ export default function Camera({ onCapture }: CameraProps) {
     };
 
     animFrameRef.current = requestAnimationFrame(render);
-  }, [aeLocked]);
+  }, []);
 
   const stopPreviewLoop = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -125,10 +104,8 @@ export default function Camera({ onCapture }: CameraProps) {
     const canvas = previewCanvasRef.current;
     if (!canvas || !isStreaming) return;
 
-    // Snapshot current preview frame (already processed)
     const photoData = canvas.toDataURL('image/jpeg', 0.92);
 
-    // Save to device
     const link = document.createElement('a');
     link.href = photoData;
     link.download = `obscura_${Date.now()}.jpg`;
@@ -162,22 +139,18 @@ export default function Camera({ onCapture }: CameraProps) {
           className="viewfinder crosshair relative w-full rounded overflow-hidden"
           style={{ aspectRatio: '4/3', background: '#000' }}
         >
-          {/* Flash overlay */}
           {isFlashing && (
             <div className="absolute inset-0 bg-white z-20 animate-shutter-flash pointer-events-none" />
           )}
 
-          {/* Hidden video element (source for canvas) */}
           <video ref={videoRef} className="hidden" playsInline muted />
 
-          {/* Live B&W canvas preview */}
           <canvas
             ref={previewCanvasRef}
             className="w-full h-full object-cover"
-            style={{ display: isStreaming ? 'block' : 'none', imageRendering: 'auto' }}
+            style={{ display: isStreaming ? 'block' : 'none' }}
           />
 
-          {/* Idle state */}
           {!isStreaming && !error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950">
               <div className="w-16 h-16 rounded-full border-2 border-copper/40 flex items-center justify-center">
@@ -187,7 +160,6 @@ export default function Camera({ onCapture }: CameraProps) {
             </div>
           )}
 
-          {/* Error state */}
           {error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950">
               <Icon name="CameraOff" size={32} className="text-red-700/70" />
@@ -195,7 +167,6 @@ export default function Camera({ onCapture }: CameraProps) {
             </div>
           )}
 
-          {/* HUD overlay */}
           {isStreaming && (
             <div className="absolute inset-0 pointer-events-none z-10">
               <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-copper/70" />
@@ -221,45 +192,17 @@ export default function Camera({ onCapture }: CameraProps) {
 
       {/* Camera body bottom — controls */}
       <div className="w-full max-w-2xl leather-bg rounded-b-2xl px-6 pt-3 pb-5 flex items-center justify-between border-b border-x border-copper/30">
-        <div className="flex flex-col gap-2">
+        {/* Left — film strip decoration */}
+        <div className="flex flex-col gap-1.5">
           <div className="flex gap-1">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="w-3 h-1.5 rounded-sm bg-zinc-800 border border-zinc-700" />
             ))}
           </div>
           <span className="font-mono-film text-copper/40 text-xs">FILM</span>
-          {isStreaming && (
-            <button
-              onClick={() => setAeLocked(v => !v)}
-              title="Блокировка экспозиции"
-              className="flex flex-col items-center gap-0.5 group"
-            >
-              <div
-                className="w-9 h-7 rounded flex items-center justify-center transition-all"
-                style={{
-                  background: aeLocked
-                    ? 'linear-gradient(135deg, #b87333, #8a5a20)'
-                    : 'linear-gradient(135deg, #2a2a2a, #1a1a1a)',
-                  border: aeLocked ? '1px solid #d4a054' : '1px solid #444',
-                  boxShadow: aeLocked ? '0 0 8px rgba(184,115,51,0.5)' : 'none',
-                }}
-              >
-                <Icon
-                  name={aeLocked ? 'Lock' : 'LockOpen'}
-                  size={13}
-                  className={aeLocked ? 'text-black' : 'text-zinc-500'}
-                />
-              </div>
-              <span
-                className="font-mono-film text-xs"
-                style={{ color: aeLocked ? '#b87333' : '#555', fontSize: '9px', letterSpacing: '0.1em' }}
-              >
-                AE-L
-              </span>
-            </button>
-          )}
         </div>
 
+        {/* Center — shutter */}
         <div className="flex flex-col items-center gap-2">
           {isStreaming ? (
             <button
@@ -276,7 +219,7 @@ export default function Camera({ onCapture }: CameraProps) {
                 border: '2px solid #555',
                 boxShadow: '0 0 0 4px #1a1a1a, 0 0 0 6px #555, 0 4px 16px rgba(0,0,0,0.8)',
               }}
-              title="Открыть затвор"
+              title="Включить камеру"
             >
               <Icon name="Power" size={22} className="text-copper/80" />
             </button>
@@ -286,6 +229,7 @@ export default function Camera({ onCapture }: CameraProps) {
           </span>
         </div>
 
+        {/* Right — stop button */}
         <div className="flex flex-col items-end gap-1.5">
           {isStreaming && (
             <button
@@ -300,8 +244,6 @@ export default function Camera({ onCapture }: CameraProps) {
           <div className="w-6 h-6 rounded-full border border-zinc-700 bg-zinc-900" />
         </div>
       </div>
-
-      <canvas ref={captureCanvasRef} className="hidden" />
     </div>
   );
 }
