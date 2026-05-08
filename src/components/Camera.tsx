@@ -76,8 +76,10 @@ export default function Camera({ onCapture }: CameraProps) {
 
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        // S-curve with adjustable contrast
-        const contrasted = Math.min(255, Math.max(0, (gray - 128) * contrastMult + 128));
+        // Soft S-curve: strong in shadows/highlights, gentle in midtones
+        const t = gray / 255;
+        const soft = t + (contrastMult - 1) * 0.15 * Math.sin(Math.PI * t) * (t - 0.5);
+        const contrasted = Math.min(255, Math.max(0, soft * 255));
         // Apply matte: remap 0–255 → blackPoint–whitePoint
         const matte = blackPoint + (contrasted / 255) * range;
         // Exposure + film grain
