@@ -16,6 +16,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const [time, setTime] = useState('');
   const [exposure, setExposure] = useState(0); // -100..+100
   const exposureRef = useRef(0);
+  const [focusState, setFocusState] = useState<'idle' | 'focusing' | 'focused'>('idle');
 
   useEffect(() => {
     const tick = () => {
@@ -99,6 +100,7 @@ export default function Camera({ onCapture }: CameraProps) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach(t => t.stop());
       setIsStreaming(false);
+      setFocusState('idle');
     }
   }, [stopPreviewLoop]);
 
@@ -199,6 +201,67 @@ export default function Camera({ onCapture }: CameraProps) {
         </div>
       )}
 
+      {/* Focus circle — center */}
+      {isStreaming && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          <div
+            className="relative flex items-center justify-center"
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              border: focusState === 'focused'
+                ? '1.5px solid rgba(184,115,51,0.9)'
+                : focusState === 'focusing'
+                ? '1.5px solid rgba(255,255,255,0.6)'
+                : '1.5px solid rgba(255,255,255,0.3)',
+              transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+              boxShadow: focusState === 'focused'
+                ? '0 0 0 1px rgba(184,115,51,0.3), inset 0 0 0 1px rgba(184,115,51,0.15)'
+                : 'none',
+            }}
+          >
+            {/* Corner ticks inside circle */}
+            {(['tl','tr','bl','br'] as const).map(pos => (
+              <div
+                key={pos}
+                style={{
+                  position: 'absolute',
+                  width: 10,
+                  height: 10,
+                  top: pos.startsWith('t') ? 4 : undefined,
+                  bottom: pos.startsWith('b') ? 4 : undefined,
+                  left: pos.endsWith('l') ? 4 : undefined,
+                  right: pos.endsWith('r') ? 4 : undefined,
+                  borderTop: pos.startsWith('t') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
+                  borderBottom: pos.startsWith('b') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
+                  borderLeft: pos.endsWith('l') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
+                  borderRight: pos.endsWith('r') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
+                  transition: 'border-color 0.3s ease',
+                }}
+              />
+            ))}
+            {/* Focus locked indicator */}
+            {focusState === 'focused' && (
+              <span
+                className="absolute font-mono-film"
+                style={{ bottom: -18, fontSize: 9, color: 'rgba(184,115,51,0.9)', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}
+              >
+                AF ✦ LOCK
+              </span>
+            )}
+            {focusState === 'focusing' && (
+              <span
+                className="absolute font-mono-film animate-blink"
+                style={{ bottom: -18, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em' }}
+              >
+                FOCUS...
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* HUD — top */}
       {isStreaming && (
         <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
@@ -280,11 +343,19 @@ export default function Camera({ onCapture }: CameraProps) {
               <span className="font-mono-film text-copper/40 text-xs">FILM</span>
             </div>
 
-            {/* Shutter — half size (w-10 h-10) */}
+            {/* Shutter — two-step */}
             <button
-              onClick={capturePhoto}
+              onClick={() => {
+                if (focusState === 'idle') {
+                  setFocusState('focusing');
+                  setTimeout(() => setFocusState('focused'), 600);
+                } else if (focusState === 'focused') {
+                  capturePhoto();
+                  setFocusState('idle');
+                }
+              }}
               className="shutter-btn w-10 h-10 rounded-full cursor-pointer"
-              title="Снять фото"
+              title={focusState === 'idle' ? 'Фокусировка' : 'Снять фото'}
             />
 
             {/* Stop */}
