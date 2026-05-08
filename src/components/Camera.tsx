@@ -41,11 +41,20 @@ export default function Camera({ onCapture }: CameraProps) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
+      // Matte curve: black point lifted to 30, white point pulled to 220
+      const blackPoint = 30;
+      const whitePoint = 220;
+      const range = whitePoint - blackPoint;
+
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        // High contrast S-curve
         const contrasted = Math.min(255, Math.max(0, (gray - 128) * 2.2 + 128));
-        const noise = (Math.random() - 0.5) * 50;
-        const final = Math.min(255, Math.max(0, contrasted + noise));
+        // Apply matte: remap 0–255 → blackPoint–whitePoint
+        const matte = blackPoint + (contrasted / 255) * range;
+        // Film grain
+        const noise = (Math.random() - 0.5) * 40;
+        const final = Math.min(255, Math.max(0, matte + noise));
         data[i] = final;
         data[i + 1] = final;
         data[i + 2] = final;
