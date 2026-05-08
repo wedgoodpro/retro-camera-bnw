@@ -84,6 +84,15 @@ export default function Camera({ onCapture }: CameraProps) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1920 } }
       });
+      // Enable continuous autofocus so camera always tracks nearby objects
+      try {
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
+        if (caps.focusMode?.includes('continuous')) {
+          await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] });
+        }
+      } catch { /* not supported */ }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
@@ -113,33 +122,45 @@ export default function Camera({ onCapture }: CameraProps) {
     if (!isStreaming) return;
     setFocusState('focusing');
 
-    // Try native AF via ImageCapture API
     try {
       const stream = videoRef.current?.srcObject as MediaStream | null;
       const track = stream?.getVideoTracks()[0];
       if (track) {
-        const capabilities = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
-        if (capabilities.focusMode?.includes('single-shot')) {
+        const caps = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
+        // Switch to single-shot to lock focus at current distance
+        if (caps.focusMode?.includes('single-shot')) {
           await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' } as MediaTrackConstraintSet] });
         }
       }
-    } catch {
-      // AF API not supported, fallback to timer
-    }
+    } catch { /* not supported */ }
 
-    // Lock after 700ms regardless
+    // Show locked state after short delay
     focusIntervalRef.current = setTimeout(() => {
       setFocusState('focused');
-    }, 700) as unknown as ReturnType<typeof setInterval>;
+    }, 500) as unknown as ReturnType<typeof setInterval>;
   }, [isStreaming]);
+
+  const resetToAutoFocus = useCallback(async () => {
+    try {
+      const stream = videoRef.current?.srcObject as MediaStream | null;
+      const track = stream?.getVideoTracks()[0];
+      if (track) {
+        const caps = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
+        if (caps.focusMode?.includes('continuous')) {
+          await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] });
+        }
+      }
+    } catch { /* not supported */ }
+  }, []);
 
   const releaseFocus = useCallback(() => {
     if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
     if (focusState === 'focused' || focusState === 'focusing') {
       capturePhotoRef.current();
+      resetToAutoFocus();
     }
     setFocusState('idle');
-  }, [focusState]);
+  }, [focusState, resetToAutoFocus]);
 
   useEffect(() => {
     return () => stopCamera();
