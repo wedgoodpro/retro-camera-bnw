@@ -266,6 +266,26 @@
   animation: blink 1.5s ease-in-out infinite;
 }
 
+/* Exposure slider thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #d4a054, #b87333);
+  border: 1px solid #7a4d18;
+  box-shadow: 0 0 6px rgba(184, 115, 51, 0.5);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #d4a054, #b87333);
+  border: 1px solid #7a4d18;
+  cursor: pointer;
+}
+
 .font-special {
   font-family: "Special Elite", cursive;
 }
