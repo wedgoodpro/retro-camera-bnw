@@ -37,33 +37,15 @@ export default function Camera({ onCapture }: CameraProps) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    const getRotationAngle = (): number => {
-      const a = screen.orientation?.angle ?? 0;
-      if (a === 90) return -90;
-      if (a === 270) return 90;
-      if (a === 180) return 180;
-      return 0;
-    };
-
     const render = () => {
       if (video.readyState < 2) {
         animFrameRef.current = requestAnimationFrame(render);
         return;
       }
 
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      const rotate = getRotationAngle();
-      const needsSwap = rotate === 90 || rotate === -90;
-
-      canvas.width = needsSwap ? vh : vw;
-      canvas.height = needsSwap ? vw : vh;
-
-      ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((rotate * Math.PI) / 180);
-      ctx.drawImage(video, -vw / 2, -vh / 2, vw, vh);
-      ctx.restore();
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;

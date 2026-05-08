@@ -286,20 +286,6 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
 }
 
-/* Force portrait — CSS fallback for Safari/unsupported */
-@media screen and (orientation: landscape) and (max-height: 500px) {
-  html {
-    transform: rotate(-90deg);
-    transform-origin: left top;
-    width: 100dvh;
-    height: 100dvw;
-    overflow-x: hidden;
-    position: absolute;
-    top: 100%;
-    left: 0;
-  }
-}
-
 .font-special {
   font-family: "Special Elite", cursive;
 }
