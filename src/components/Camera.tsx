@@ -16,8 +16,6 @@ export default function Camera({ onCapture }: CameraProps) {
   const [time, setTime] = useState('');
   const [exposure, setExposure] = useState(0); // -100..+100
   const exposureRef = useRef(0);
-  const [focusState, setFocusState] = useState<'idle' | 'focusing' | 'focused'>('idle');
-  const focusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const capturePhotoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -84,15 +82,6 @@ export default function Camera({ onCapture }: CameraProps) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1920 } }
       });
-      // Enable continuous autofocus so camera always tracks nearby objects
-      try {
-        const track = stream.getVideoTracks()[0];
-        const caps = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
-        if (caps.focusMode?.includes('continuous')) {
-          await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] });
-        }
-      } catch { /* not supported */ }
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
@@ -109,58 +98,12 @@ export default function Camera({ onCapture }: CameraProps) {
 
   const stopCamera = useCallback(() => {
     stopPreviewLoop();
-    if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach(t => t.stop());
       setIsStreaming(false);
-      setFocusState('idle');
     }
   }, [stopPreviewLoop]);
-
-  const startFocus = useCallback(async () => {
-    if (!isStreaming) return;
-    setFocusState('focusing');
-
-    try {
-      const stream = videoRef.current?.srcObject as MediaStream | null;
-      const track = stream?.getVideoTracks()[0];
-      if (track) {
-        const caps = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
-        // Switch to single-shot to lock focus at current distance
-        if (caps.focusMode?.includes('single-shot')) {
-          await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' } as MediaTrackConstraintSet] });
-        }
-      }
-    } catch { /* not supported */ }
-
-    // Show locked state after short delay
-    focusIntervalRef.current = setTimeout(() => {
-      setFocusState('focused');
-    }, 500) as unknown as ReturnType<typeof setInterval>;
-  }, [isStreaming]);
-
-  const resetToAutoFocus = useCallback(async () => {
-    try {
-      const stream = videoRef.current?.srcObject as MediaStream | null;
-      const track = stream?.getVideoTracks()[0];
-      if (track) {
-        const caps = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
-        if (caps.focusMode?.includes('continuous')) {
-          await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] });
-        }
-      }
-    } catch { /* not supported */ }
-  }, []);
-
-  const releaseFocus = useCallback(() => {
-    if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
-    if (focusState === 'focused' || focusState === 'focusing') {
-      capturePhotoRef.current();
-      resetToAutoFocus();
-    }
-    setFocusState('idle');
-  }, [focusState, resetToAutoFocus]);
 
   useEffect(() => {
     return () => stopCamera();
@@ -255,27 +198,18 @@ export default function Camera({ onCapture }: CameraProps) {
         </div>
       )}
 
-      {/* Focus circle — center */}
+      {/* Focus circle — decorative */}
       {isStreaming && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
           <div
-            className="relative flex items-center justify-center"
             style={{
               width: 80,
               height: 80,
               borderRadius: '50%',
-              border: focusState === 'focused'
-                ? '1.5px solid rgba(184,115,51,0.9)'
-                : focusState === 'focusing'
-                ? '1.5px solid rgba(255,255,255,0.6)'
-                : '1.5px solid rgba(255,255,255,0.3)',
-              transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-              boxShadow: focusState === 'focused'
-                ? '0 0 0 1px rgba(184,115,51,0.3), inset 0 0 0 1px rgba(184,115,51,0.15)'
-                : 'none',
+              border: '1.5px solid rgba(255,255,255,0.25)',
+              position: 'relative',
             }}
           >
-            {/* Corner ticks inside circle */}
             {(['tl','tr','bl','br'] as const).map(pos => (
               <div
                 key={pos}
@@ -287,31 +221,13 @@ export default function Camera({ onCapture }: CameraProps) {
                   bottom: pos.startsWith('b') ? 4 : undefined,
                   left: pos.endsWith('l') ? 4 : undefined,
                   right: pos.endsWith('r') ? 4 : undefined,
-                  borderTop: pos.startsWith('t') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
-                  borderBottom: pos.startsWith('b') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
-                  borderLeft: pos.endsWith('l') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
-                  borderRight: pos.endsWith('r') ? `1.5px solid ${focusState === 'focused' ? 'rgba(184,115,51,0.9)' : 'rgba(255,255,255,0.5)'}` : undefined,
-                  transition: 'border-color 0.3s ease',
+                  borderTop: pos.startsWith('t') ? '1.5px solid rgba(255,255,255,0.5)' : undefined,
+                  borderBottom: pos.startsWith('b') ? '1.5px solid rgba(255,255,255,0.5)' : undefined,
+                  borderLeft: pos.endsWith('l') ? '1.5px solid rgba(255,255,255,0.5)' : undefined,
+                  borderRight: pos.endsWith('r') ? '1.5px solid rgba(255,255,255,0.5)' : undefined,
                 }}
               />
             ))}
-            {/* Focus locked indicator */}
-            {focusState === 'focused' && (
-              <span
-                className="absolute font-mono-film"
-                style={{ bottom: -18, fontSize: 9, color: 'rgba(184,115,51,0.9)', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}
-              >
-                AF ✦ LOCK
-              </span>
-            )}
-            {focusState === 'focusing' && (
-              <span
-                className="absolute font-mono-film animate-blink"
-                style={{ bottom: -18, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em' }}
-              >
-                FOCUS...
-              </span>
-            )}
           </div>
         </div>
       )}
@@ -401,12 +317,9 @@ export default function Camera({ onCapture }: CameraProps) {
 
               {/* Shutter */}
               <button
-                onPointerDown={e => { e.preventDefault(); startFocus(); }}
-                onPointerUp={e => { e.preventDefault(); releaseFocus(); }}
-                onPointerLeave={e => { e.preventDefault(); releaseFocus(); }}
-                className="shutter-btn w-14 h-14 rounded-full cursor-pointer select-none"
-                style={{ touchAction: 'none' }}
-                title="Держи — фокус, отпусти — снимок"
+                onClick={capturePhoto}
+                className="shutter-btn w-14 h-14 rounded-full cursor-pointer"
+                title="Снять фото"
               />
 
               {/* Stop */}
