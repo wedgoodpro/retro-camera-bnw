@@ -70,15 +70,26 @@ export default function Camera({ onCapture }: CameraProps) {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
+      // B&W conversion
       const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      const contrasted = Math.min(255, Math.max(0, (gray - 128) * 1.15 + 128));
-      data[i] = contrasted;
-      data[i + 1] = contrasted;
-      data[i + 2] = contrasted;
+      // High contrast: S-curve with factor 2.2
+      const contrasted = Math.min(255, Math.max(0, (gray - 128) * 2.2 + 128));
+      // Film grain noise ±25
+      const noise = (Math.random() - 0.5) * 50;
+      const final = Math.min(255, Math.max(0, contrasted + noise));
+      data[i] = final;
+      data[i + 1] = final;
+      data[i + 2] = final;
     }
     ctx.putImageData(imageData, 0, 0);
 
     const photoData = canvas.toDataURL('image/jpeg', 0.92);
+
+    // Save to device gallery
+    const link = document.createElement('a');
+    link.href = photoData;
+    link.download = `obscura_${Date.now()}.jpg`;
+    link.click();
 
     setIsFlashing(true);
     setTimeout(() => setIsFlashing(false), 300);
