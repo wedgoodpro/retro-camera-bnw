@@ -7,7 +7,9 @@ interface CameraProps {
 
 export default function Camera({ onCapture }: CameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement>(null);
+  const animFrameRef = useRef<number>(0);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +28,48 @@ export default function Camera({ onCapture }: CameraProps) {
     return () => clearInterval(id);
   }, []);
 
+  // Live preview loop — renders B&W + contrast + noise each frame
+  const startPreviewLoop = useCallback((video: HTMLVideoElement) => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    const render = () => {
+      if (video.readyState < 2) {
+        animFrameRef.current = requestAnimationFrame(render);
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        const contrasted = Math.min(255, Math.max(0, (gray - 128) * 2.2 + 128));
+        const noise = (Math.random() - 0.5) * 50;
+        const final = Math.min(255, Math.max(0, contrasted + noise));
+        data[i] = final;
+        data[i + 1] = final;
+        data[i + 2] = final;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      animFrameRef.current = requestAnimationFrame(render);
+    };
+
+    animFrameRef.current = requestAnimationFrame(render);
+  }, []);
+
+  const stopPreviewLoop = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+  }, []);
+
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -34,58 +78,38 @@ export default function Camera({ onCapture }: CameraProps) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
+        videoRef.current.onloadedmetadata = () => {
+          startPreviewLoop(videoRef.current!);
+        };
         setIsStreaming(true);
         setError(null);
       }
     } catch {
       setError('Нет доступа к камере');
     }
-  }, []);
+  }, [startPreviewLoop]);
 
   const stopCamera = useCallback(() => {
+    stopPreviewLoop();
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach(t => t.stop());
       setIsStreaming(false);
     }
-  }, []);
+  }, [stopPreviewLoop]);
 
   useEffect(() => {
     return () => stopCamera();
   }, [stopCamera]);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || !isStreaming) return;
+    const canvas = previewCanvasRef.current;
+    if (!canvas || !isStreaming) return;
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    for (let i = 0; i < data.length; i += 4) {
-      // B&W conversion
-      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      // High contrast: S-curve with factor 2.2
-      const contrasted = Math.min(255, Math.max(0, (gray - 128) * 2.2 + 128));
-      // Film grain noise ±25
-      const noise = (Math.random() - 0.5) * 50;
-      const final = Math.min(255, Math.max(0, contrasted + noise));
-      data[i] = final;
-      data[i + 1] = final;
-      data[i + 2] = final;
-    }
-    ctx.putImageData(imageData, 0, 0);
-
+    // Snapshot current preview frame (already processed)
     const photoData = canvas.toDataURL('image/jpeg', 0.92);
 
-    // Save to device gallery
+    // Save to device
     const link = document.createElement('a');
     link.href = photoData;
     link.download = `obscura_${Date.now()}.jpg`;
@@ -116,7 +140,7 @@ export default function Camera({ onCapture }: CameraProps) {
       {/* Viewfinder area */}
       <div className="w-full max-w-2xl leather-bg border-x border-copper/30 px-4 pb-2">
         <div
-          className="viewfinder crosshair relative w-full rounded overflow-hidden grain"
+          className="viewfinder crosshair relative w-full rounded overflow-hidden"
           style={{ aspectRatio: '4/3', background: '#000' }}
         >
           {/* Flash overlay */}
@@ -124,13 +148,14 @@ export default function Camera({ onCapture }: CameraProps) {
             <div className="absolute inset-0 bg-white z-20 animate-shutter-flash pointer-events-none" />
           )}
 
-          {/* Video stream */}
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover photo-bw"
-            playsInline
-            muted
-            style={{ display: isStreaming ? 'block' : 'none' }}
+          {/* Hidden video element (source for canvas) */}
+          <video ref={videoRef} className="hidden" playsInline muted />
+
+          {/* Live B&W canvas preview */}
+          <canvas
+            ref={previewCanvasRef}
+            className="w-full h-full object-cover"
+            style={{ display: isStreaming ? 'block' : 'none', imageRendering: 'auto' }}
           />
 
           {/* Idle state */}
@@ -154,19 +179,16 @@ export default function Camera({ onCapture }: CameraProps) {
           {/* HUD overlay */}
           {isStreaming && (
             <div className="absolute inset-0 pointer-events-none z-10">
-              {/* Corner brackets */}
               <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-copper/70" />
               <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-copper/70" />
               <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-copper/70" />
               <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-copper/70" />
 
-              {/* REC indicator */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-red-600 animate-blink" />
                 <span className="font-mono-film text-xs text-white/70">REC</span>
               </div>
 
-              {/* Bottom info */}
               <div className="absolute bottom-2 left-0 right-0 px-4 flex items-center justify-between">
                 <span className="font-mono-film text-xs text-copper/60">{time}</span>
                 <span className="font-mono-film text-xs text-copper/60">
@@ -179,20 +201,16 @@ export default function Camera({ onCapture }: CameraProps) {
       </div>
 
       {/* Camera body bottom — controls */}
-      <div
-        className="w-full max-w-2xl leather-bg rounded-b-2xl px-6 pt-3 pb-5 flex items-center justify-between border-b border-x border-copper/30"
-      >
-        {/* Left controls */}
+      <div className="w-full max-w-2xl leather-bg rounded-b-2xl px-6 pt-3 pb-5 flex items-center justify-between border-b border-x border-copper/30">
         <div className="flex flex-col gap-1.5">
           <div className="flex gap-1">
-            {[1,2,3,4].map(i => (
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className="w-3 h-1.5 rounded-sm bg-zinc-800 border border-zinc-700" />
             ))}
           </div>
           <span className="font-mono-film text-copper/40 text-xs">FILM</span>
         </div>
 
-        {/* Shutter button */}
         <div className="flex flex-col items-center gap-2">
           {isStreaming ? (
             <button
@@ -219,7 +237,6 @@ export default function Camera({ onCapture }: CameraProps) {
           </span>
         </div>
 
-        {/* Right controls */}
         <div className="flex flex-col items-end gap-1.5">
           {isStreaming && (
             <button
@@ -235,7 +252,7 @@ export default function Camera({ onCapture }: CameraProps) {
         </div>
       </div>
 
-      <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={captureCanvasRef} className="hidden" />
     </div>
   );
 }
