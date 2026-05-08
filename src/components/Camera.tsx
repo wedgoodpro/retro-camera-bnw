@@ -107,9 +107,40 @@ export default function Camera({ onCapture }: CameraProps) {
   }, [stopCamera]);
 
   const capturePhoto = useCallback(() => {
-    const canvas = previewCanvasRef.current;
-    if (!canvas || !isStreaming) return;
-    const photoData = canvas.toDataURL('image/jpeg', 0.92);
+    const srcCanvas = previewCanvasRef.current;
+    const container = srcCanvas?.parentElement;
+    if (!srcCanvas || !isStreaming || !container) return;
+
+    // Visible area on screen (what user actually sees via object-cover)
+    const displayW = container.clientWidth;
+    const displayH = container.clientHeight;
+    const displayRatio = displayW / displayH;
+
+    const srcW = srcCanvas.width;
+    const srcH = srcCanvas.height;
+    const srcRatio = srcW / srcH;
+
+    // Compute the cropped region in source canvas coords (same as object-cover logic)
+    let cropX = 0, cropY = 0, cropW = srcW, cropH = srcH;
+    if (srcRatio > displayRatio) {
+      // source wider than display — crop sides
+      cropW = Math.round(srcH * displayRatio);
+      cropX = Math.round((srcW - cropW) / 2);
+    } else {
+      // source taller than display — crop top/bottom
+      cropH = Math.round(srcW / displayRatio);
+      cropY = Math.round((srcH - cropH) / 2);
+    }
+
+    // Draw cropped region into an output canvas
+    const out = document.createElement('canvas');
+    out.width = cropW;
+    out.height = cropH;
+    const ctx = out.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(srcCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    const photoData = out.toDataURL('image/jpeg', 0.92);
     const link = document.createElement('a');
     link.href = photoData;
     link.download = `obscura_${Date.now()}.jpg`;
