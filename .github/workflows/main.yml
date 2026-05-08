@@ -28,7 +28,9 @@ jobs:
         run: bun install
 
       - name: Build
-        run: bun run build -- --base=/retro-camera-bnw/
+        run: bun run build
+        env:
+          VITE_BASE_URL: /retro-camera-bnw/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
