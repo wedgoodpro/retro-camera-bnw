@@ -16,6 +16,8 @@ export default function Camera({ onCapture }: CameraProps) {
   const [time, setTime] = useState('');
   const [exposure, setExposure] = useState(0); // -100..+100
   const exposureRef = useRef(0);
+  const [contrast, setContrast] = useState(0); // -100..+100
+  const contrastRef = useRef(0);
   const capturePhotoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -52,11 +54,13 @@ export default function Camera({ onCapture }: CameraProps) {
       const range = whitePoint - blackPoint;
       // Exposure compensation: ±80px shift
       const expShift = exposureRef.current * 0.8;
+      // Contrast: base 2.2, range 0.2..4.2
+      const contrastMult = 2.2 + contrastRef.current * 0.02;
 
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        // High contrast S-curve
-        const contrasted = Math.min(255, Math.max(0, (gray - 128) * 2.2 + 128));
+        // S-curve with adjustable contrast
+        const contrasted = Math.min(255, Math.max(0, (gray - 128) * contrastMult + 128));
         // Apply matte: remap 0–255 → blackPoint–whitePoint
         const matte = blackPoint + (contrasted / 255) * range;
         // Exposure + film grain
@@ -252,8 +256,38 @@ export default function Camera({ onCapture }: CameraProps) {
       >
         {isStreaming ? (
           <>
+            {/* Contrast slider */}
+            <div className="flex flex-col items-center gap-1 px-10 pt-4 pb-1">
+              <div className="flex items-center gap-3 w-full">
+                <Icon name="Circle" size={12} className="text-copper/40 flex-shrink-0" />
+                <div className="relative flex-1">
+                  <input
+                    type="range"
+                    min={-100}
+                    max={100}
+                    value={contrast}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setContrast(v);
+                      contrastRef.current = v;
+                    }}
+                    className="w-full h-0.5 appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, rgba(184,115,51,0.3) 0%, rgba(184,115,51,0.8) ${(contrast + 100) / 2}%, rgba(184,115,51,0.3) ${(contrast + 100) / 2}%, rgba(184,115,51,0.3) 100%)`,
+                      accentColor: '#b87333',
+                    }}
+                  />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-2 bg-copper/40 pointer-events-none" />
+                </div>
+                <Icon name="Contrast" size={16} className="text-copper/70 flex-shrink-0" />
+              </div>
+              <span className="font-mono-film text-copper/40 text-xs tracking-widest">
+                {contrast > 0 ? `+${contrast}` : contrast} CONTRAST
+              </span>
+            </div>
+
             {/* Exposure slider */}
-            <div className="flex flex-col items-center gap-1 px-10 pt-4 pb-2">
+            <div className="flex flex-col items-center gap-1 px-10 pt-2 pb-2">
               <div className="flex items-center gap-3 w-full">
                 <Icon name="Sun" size={12} className="text-copper/40 flex-shrink-0" />
                 <div className="relative flex-1">
