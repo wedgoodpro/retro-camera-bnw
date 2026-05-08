@@ -120,7 +120,7 @@ export default function Camera({ onCapture }: CameraProps) {
   return (
     <div className="flex flex-col items-center gap-0">
       {/* Camera body top */}
-      <div className="w-full max-w-2xl leather-bg rounded-t-2xl px-6 pt-4 pb-2 flex items-center justify-between border-t border-x border-copper/30">
+      <div className="w-full leather-bg px-6 pt-4 pb-2 flex items-center justify-between border-b border-copper/20">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 border border-zinc-600 flex items-center justify-center">
             <div className="w-3 h-3 rounded-full bg-gradient-to-br from-zinc-400 to-zinc-600 border border-zinc-500" />
@@ -134,9 +134,9 @@ export default function Camera({ onCapture }: CameraProps) {
       </div>
 
       {/* Viewfinder area */}
-      <div className="w-full max-w-2xl leather-bg border-x border-copper/30 px-4 pb-2">
+      <div className="w-full">
         <div
-          className="viewfinder crosshair relative w-full rounded overflow-hidden"
+          className="viewfinder crosshair relative w-full overflow-hidden"
           style={{ aspectRatio: '4/3', background: '#000' }}
         >
           {isFlashing && (
@@ -191,7 +191,7 @@ export default function Camera({ onCapture }: CameraProps) {
       </div>
 
       {/* Camera body bottom — controls */}
-      <div className="w-full max-w-2xl leather-bg rounded-b-2xl px-6 pt-3 pb-5 flex items-center justify-between border-b border-x border-copper/30">
+      <div className="w-full leather-bg px-6 pt-3 pb-5 flex items-center justify-between border-t border-copper/20">
         {/* Left — film strip decoration */}
         <div className="flex flex-col gap-1.5">
           <div className="flex gap-1">

@@ -18,7 +18,7 @@ export default function Index() {
       style={{ background: 'linear-gradient(160deg, #0e0b08 0%, #110e0a 50%, #0a0907 100%)' }}
     >
       {/* Header */}
-      <header className="border-b border-copper/20 px-6 py-3 flex items-center justify-between">
+      <header className="border-b border-copper/20 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center"
@@ -47,7 +47,7 @@ export default function Index() {
       </header>
 
       {/* Camera */}
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="w-full">
         <Camera onCapture={handleCapture} />
       </main>
 
