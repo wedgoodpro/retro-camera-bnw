@@ -346,7 +346,7 @@ export default function Camera({ onCapture }: CameraProps) {
                 <Icon name="Sun" size={16} className="text-copper/70 flex-shrink-0" />
               </div>
               <span className="font-mono-film text-copper/40 text-xs tracking-widest">
-                {exposure > 0 ? `+${exposure}` : exposure} EV
+                ЭКСПОЗИЦИЯ
               </span>
             </div>
 
