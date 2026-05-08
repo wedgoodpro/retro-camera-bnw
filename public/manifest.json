@@ -1,0 +1,19 @@
+{
+  "name": "OBSCURA — Винтажная камера",
+  "short_name": "OBSCURA",
+  "description": "Винтажная плёночная камера с чёрно-белыми фильтрами",
+  "start_url": "/retro-camera-bnw/",
+  "scope": "/retro-camera-bnw/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "https://cdn.poehali.dev/projects/08383e13-1361-4ca6-8735-8c2a09e6b7ca/files/0dccf0b8-5ba0-4987-bd66-d69f2bda13c0.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
