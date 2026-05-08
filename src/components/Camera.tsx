@@ -349,14 +349,19 @@ export default function Camera({ onCapture }: CameraProps) {
 
             {/* Controls row */}
             <div className="flex items-center justify-between px-8 pb-6 pt-1">
-              <div className="flex flex-col items-center gap-1">
+              <a
+                href="https://vk.com/fotoklubpro"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1"
+              >
                 <div className="flex gap-1">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="w-2.5 h-1 rounded-sm bg-zinc-800 border border-zinc-700" />
                   ))}
                 </div>
-                <span className="font-mono-film text-copper/30 text-xs">FILM</span>
-              </div>
+                <span className="font-mono-film text-copper/30 text-xs text-center leading-tight">УРОКИ<br/>ФОТОГРАФИИ</span>
+              </a>
 
               {/* Shutter */}
               <button
