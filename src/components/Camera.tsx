@@ -17,6 +17,8 @@ export default function Camera({ onCapture }: CameraProps) {
   const [exposure, setExposure] = useState(0); // -100..+100
   const exposureRef = useRef(0);
   const [focusState, setFocusState] = useState<'idle' | 'focusing' | 'focused'>('idle');
+  const focusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const focusSharpnessRef = useRef(0);
 
   useEffect(() => {
     const tick = () => {
@@ -96,6 +98,7 @@ export default function Camera({ onCapture }: CameraProps) {
 
   const stopCamera = useCallback(() => {
     stopPreviewLoop();
+    if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
     if (videoRef.current?.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach(t => t.stop());
@@ -103,6 +106,56 @@ export default function Camera({ onCapture }: CameraProps) {
       setFocusState('idle');
     }
   }, [stopPreviewLoop]);
+
+  // Measure sharpness of the circle region via Laplacian variance
+  const measureSharpness = useCallback(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return 0;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 0;
+    const cx = Math.floor(canvas.width / 2);
+    const cy = Math.floor(canvas.height / 2);
+    const r = Math.floor(Math.min(canvas.width, canvas.height) * 0.12);
+    const size = r * 2;
+    if (size <= 0) return 0;
+    const data = ctx.getImageData(cx - r, cy - r, size, size).data;
+    let variance = 0;
+    let prev = data[0];
+    for (let i = 4; i < data.length; i += 4) {
+      const diff = data[i] - prev;
+      variance += diff * diff;
+      prev = data[i];
+    }
+    return variance / (size * size);
+  }, []);
+
+  const startFocus = useCallback(() => {
+    if (!isStreaming) return;
+    setFocusState('focusing');
+    focusSharpnessRef.current = measureSharpness();
+
+    // Poll sharpness — simulate AF hunting then lock
+    let ticks = 0;
+    focusIntervalRef.current = setInterval(() => {
+      const sharp = measureSharpness();
+      const delta = Math.abs(sharp - focusSharpnessRef.current);
+      focusSharpnessRef.current = sharp;
+      ticks++;
+      // Lock when sharpness stabilises or after max 1.2s
+      if ((delta < sharp * 0.05 && ticks > 3) || ticks > 8) {
+        if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
+        setFocusState('focused');
+      }
+    }, 150);
+  }, [isStreaming, measureSharpness]);
+
+  const releaseFocus = useCallback(() => {
+    if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
+    if (focusState === 'focused' || focusState === 'focusing') {
+      capturePhoto();
+    }
+    setFocusState('idle');
+  }, [focusState, capturePhoto]);
 
   useEffect(() => {
     return () => stopCamera();
@@ -343,19 +396,14 @@ export default function Camera({ onCapture }: CameraProps) {
               <span className="font-mono-film text-copper/40 text-xs">FILM</span>
             </div>
 
-            {/* Shutter — two-step */}
+            {/* Shutter — hold to focus, release to shoot */}
             <button
-              onClick={() => {
-                if (focusState === 'idle') {
-                  setFocusState('focusing');
-                  setTimeout(() => setFocusState('focused'), 600);
-                } else if (focusState === 'focused') {
-                  capturePhoto();
-                  setFocusState('idle');
-                }
-              }}
-              className="shutter-btn w-10 h-10 rounded-full cursor-pointer"
-              title={focusState === 'idle' ? 'Фокусировка' : 'Снять фото'}
+              onPointerDown={e => { e.preventDefault(); startFocus(); }}
+              onPointerUp={e => { e.preventDefault(); releaseFocus(); }}
+              onPointerLeave={e => { e.preventDefault(); releaseFocus(); }}
+              className="shutter-btn w-10 h-10 rounded-full cursor-pointer select-none"
+              style={{ touchAction: 'none' }}
+              title="Держи — фокус, отпусти — снимок"
             />
 
             {/* Stop */}
