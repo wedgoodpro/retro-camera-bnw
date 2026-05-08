@@ -1,6 +1,11 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => void;
+  userChoice: Promise<{ outcome: string }>;
+}
+
 interface CameraProps {
   onCapture: (photoData: string) => void;
 }
@@ -21,6 +26,15 @@ export default function Camera({ onCapture }: CameraProps) {
   const [grain, setGrain] = useState(50); // 0..100
   const grainRef = useRef(50);
   const capturePhotoRef = useRef<() => void>(() => {});
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', () => setInstalled(true));
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
 
   useEffect(() => {
     const tick = () => {
@@ -230,9 +244,22 @@ export default function Camera({ onCapture }: CameraProps) {
               <span className="font-mono-film text-xs text-white/70">REC</span>
             </div>
             <span className="font-mono-film text-xs text-copper/70">{time}</span>
-            <span className="font-mono-film text-xs text-copper/60">
-              {String(shotCount).padStart(3, '0')} / 036
-            </span>
+            {!installed && (
+              <button
+                className="pointer-events-auto flex items-center gap-1"
+                onClick={() => {
+                  if (installPrompt) {
+                    (installPrompt as BeforeInstallPromptEvent).prompt();
+                    (installPrompt as BeforeInstallPromptEvent).userChoice.then(() => setInstallPrompt(null));
+                  } else {
+                    alert('Чтобы установить: нажми "Поделиться" → "На экран Домой" (iOS) или меню ⋮ → "Добавить на экран" (Android)');
+                  }
+                }}
+              >
+                <Icon name="Download" size={11} className="text-copper/60" />
+                <span className="font-mono-film text-xs text-copper/60">УСТАНОВИТЬ</span>
+              </button>
+            )}
           </div>
 
           {/* Corner brackets */}
