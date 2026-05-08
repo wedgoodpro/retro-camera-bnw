@@ -66,8 +66,8 @@ export default function Camera({ onCapture }: CameraProps) {
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
-      // Matte curve: black point 26, white point 229
-      const blackPoint = 26;
+      // Matte curve: black point 30, white point 229
+      const blackPoint = 30;
       const whitePoint = 229;
       const range = whitePoint - blackPoint;
       // Exposure compensation: ±80px shift
