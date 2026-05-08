@@ -21,7 +21,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const [time, setTime] = useState('');
   const [exposure, setExposure] = useState(0); // -100..+100
   const exposureRef = useRef(0);
-  const [contrast, setContrast] = useState(0); // -100..+100
+  const [contrast, setContrast] = useState(-100); // -100..+100
   const contrastRef = useRef(0);
   const grainRef = useRef(100);
   const capturePhotoRef = useRef<() => void>(() => {});
@@ -316,7 +316,7 @@ export default function Camera({ onCapture }: CameraProps) {
                 <Icon name="Contrast" size={16} className="text-copper/70 flex-shrink-0" />
               </div>
               <span className="font-mono-film text-copper/40 text-xs tracking-widest">
-                {contrast > 0 ? `+${contrast}` : contrast} CONTRAST
+                КОНТРАСТ
               </span>
             </div>
 
