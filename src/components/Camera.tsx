@@ -19,6 +19,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const [focusState, setFocusState] = useState<'idle' | 'focusing' | 'focused'>('idle');
   const focusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const focusSharpnessRef = useRef(0);
+  const capturePhotoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const tick = () => {
@@ -152,16 +153,16 @@ export default function Camera({ onCapture }: CameraProps) {
   const releaseFocus = useCallback(() => {
     if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
     if (focusState === 'focused' || focusState === 'focusing') {
-      capturePhoto();
+      capturePhotoRef.current();
     }
     setFocusState('idle');
-  }, [focusState, capturePhoto]);
+  }, [focusState]);
 
   useEffect(() => {
     return () => stopCamera();
   }, [stopCamera]);
 
-  const capturePhoto = useCallback(() => {
+  const capturePhoto = useCallback(() => {  
     const srcCanvas = previewCanvasRef.current;
     const container = srcCanvas?.parentElement;
     if (!srcCanvas || !isStreaming || !container) return;
@@ -205,6 +206,9 @@ export default function Camera({ onCapture }: CameraProps) {
     setShotCount(prev => prev + 1);
     onCapture(photoData);
   }, [isStreaming, onCapture]);
+
+  // Keep ref always up to date
+  capturePhotoRef.current = capturePhoto;
 
   return (
     <div
