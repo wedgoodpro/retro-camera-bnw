@@ -23,8 +23,8 @@ export default function Camera({ onCapture }: CameraProps) {
   const exposureRef = useRef(0);
   const [contrast, setContrast] = useState(0); // -100..+100
   const contrastRef = useRef(0);
-  const [grain, setGrain] = useState(50); // 0..100
-  const grainRef = useRef(50);
+  const [grain, setGrain] = useState(70); // 0..100
+  const grainRef = useRef(70);
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
