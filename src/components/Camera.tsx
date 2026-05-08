@@ -18,7 +18,6 @@ export default function Camera({ onCapture }: CameraProps) {
   const exposureRef = useRef(0);
   const [focusState, setFocusState] = useState<'idle' | 'focusing' | 'focused'>('idle');
   const focusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const focusSharpnessRef = useRef(0);
   const capturePhotoRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -110,47 +109,29 @@ export default function Camera({ onCapture }: CameraProps) {
     }
   }, [stopPreviewLoop]);
 
-  // Measure sharpness of the circle region via Laplacian variance
-  const measureSharpness = useCallback(() => {
-    const canvas = previewCanvasRef.current;
-    if (!canvas) return 0;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return 0;
-    const cx = Math.floor(canvas.width / 2);
-    const cy = Math.floor(canvas.height / 2);
-    const r = Math.floor(Math.min(canvas.width, canvas.height) * 0.12);
-    const size = r * 2;
-    if (size <= 0) return 0;
-    const data = ctx.getImageData(cx - r, cy - r, size, size).data;
-    let variance = 0;
-    let prev = data[0];
-    for (let i = 4; i < data.length; i += 4) {
-      const diff = data[i] - prev;
-      variance += diff * diff;
-      prev = data[i];
-    }
-    return variance / (size * size);
-  }, []);
-
-  const startFocus = useCallback(() => {
+  const startFocus = useCallback(async () => {
     if (!isStreaming) return;
     setFocusState('focusing');
-    focusSharpnessRef.current = measureSharpness();
 
-    // Poll sharpness — simulate AF hunting then lock
-    let ticks = 0;
-    focusIntervalRef.current = setInterval(() => {
-      const sharp = measureSharpness();
-      const delta = Math.abs(sharp - focusSharpnessRef.current);
-      focusSharpnessRef.current = sharp;
-      ticks++;
-      // Lock when sharpness stabilises or after max 1.2s
-      if ((delta < sharp * 0.05 && ticks > 3) || ticks > 8) {
-        if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
-        setFocusState('focused');
+    // Try native AF via ImageCapture API
+    try {
+      const stream = videoRef.current?.srcObject as MediaStream | null;
+      const track = stream?.getVideoTracks()[0];
+      if (track) {
+        const capabilities = track.getCapabilities() as MediaTrackCapabilities & { focusMode?: string[] };
+        if (capabilities.focusMode?.includes('single-shot')) {
+          await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' } as MediaTrackConstraintSet] });
+        }
       }
-    }, 150);
-  }, [isStreaming, measureSharpness]);
+    } catch {
+      // AF API not supported, fallback to timer
+    }
+
+    // Lock after 700ms regardless
+    focusIntervalRef.current = setTimeout(() => {
+      setFocusState('focused');
+    }, 700) as unknown as ReturnType<typeof setInterval>;
+  }, [isStreaming]);
 
   const releaseFocus = useCallback(() => {
     if (focusIntervalRef.current) clearInterval(focusIntervalRef.current);
