@@ -212,9 +212,12 @@ export default function Camera({ onCapture }: CameraProps) {
 
   return (
     <div
-      className="relative w-full overflow-hidden"
+      className="flex flex-col w-full"
       style={{ height: 'calc(100dvh - 45px)', background: '#000' }}
     >
+      {/* Viewfinder — takes remaining space */}
+      <div className="relative flex-1 overflow-hidden">
+
       {/* Flash */}
       {isFlashing && (
         <div className="absolute inset-0 bg-white z-30 animate-shutter-flash pointer-events-none" />
@@ -237,16 +240,6 @@ export default function Camera({ onCapture }: CameraProps) {
             <Icon name="Camera" size={36} className="text-copper/50" />
           </div>
           <p className="font-special text-copper/50 text-sm tracking-widest">ОБЪЕКТИВ ЗАКРЫТ</p>
-          <button
-            onClick={startCamera}
-            className="mt-4 px-8 py-3 font-mono-film text-xs tracking-widest text-black"
-            style={{
-              background: 'linear-gradient(135deg, #d4a054, #b87333)',
-              border: '1px solid #8a5a20',
-            }}
-          >
-            ВКЛЮЧИТЬ
-          </button>
         </div>
       )}
 
@@ -346,83 +339,107 @@ export default function Camera({ onCapture }: CameraProps) {
 
       {/* Bottom corner brackets */}
       {isStreaming && (
-        <div className="absolute bottom-28 left-0 right-0 z-10 pointer-events-none">
+        <div className="absolute bottom-3 left-0 right-0 z-10 pointer-events-none">
           <div className="absolute bottom-0 left-5 w-7 h-7 border-b-2 border-l-2 border-copper/60" />
           <div className="absolute bottom-0 right-5 w-7 h-7 border-b-2 border-r-2 border-copper/60" />
         </div>
       )}
 
-      {/* Bottom controls — over the viewfinder */}
-      {isStreaming && (
-        <div
-          className="absolute bottom-0 left-0 right-0 z-20"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8) 60%, transparent)' }}
-        >
-          {/* Exposure slider */}
-          <div className="flex flex-col items-center gap-1 px-10 pt-10 pb-3">
-            <div className="flex items-center gap-3 w-full">
-              <Icon name="Sun" size={12} className="text-copper/40 flex-shrink-0" style={{ opacity: 0.4 }} />
-              <div className="relative flex-1">
-                <input
-                  type="range"
-                  min={-100}
-                  max={100}
-                  value={exposure}
-                  onChange={e => {
-                    const v = Number(e.target.value);
-                    setExposure(v);
-                    exposureRef.current = v;
-                  }}
-                  className="w-full h-0.5 appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, rgba(184,115,51,0.3) 0%, rgba(184,115,51,0.8) ${(exposure + 100) / 2}%, rgba(184,115,51,0.3) ${(exposure + 100) / 2}%, rgba(184,115,51,0.3) 100%)`,
-                    accentColor: '#b87333',
-                  }}
-                />
-                {/* Center tick */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-2 bg-copper/40 pointer-events-none" />
-              </div>
-              <Icon name="Sun" size={16} className="text-copper/70 flex-shrink-0" />
-            </div>
-            <span className="font-mono-film text-copper/40 text-xs tracking-widest">
-              {exposure > 0 ? `+${exposure}` : exposure} EV
-            </span>
-          </div>
+      </div>{/* end viewfinder */}
 
-          <div className="flex items-center justify-between px-8 pb-8 pt-1">
-            {/* Film decoration */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex gap-1">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="w-2.5 h-1 rounded-sm bg-zinc-700 border border-zinc-600" />
-                ))}
+      {/* Bottom black panel */}
+      <div
+        className="w-full flex-shrink-0"
+        style={{ background: '#000', borderTop: '1px solid rgba(184,115,51,0.15)' }}
+      >
+        {isStreaming ? (
+          <>
+            {/* Exposure slider */}
+            <div className="flex flex-col items-center gap-1 px-10 pt-4 pb-2">
+              <div className="flex items-center gap-3 w-full">
+                <Icon name="Sun" size={12} className="text-copper/40 flex-shrink-0" />
+                <div className="relative flex-1">
+                  <input
+                    type="range"
+                    min={-100}
+                    max={100}
+                    value={exposure}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setExposure(v);
+                      exposureRef.current = v;
+                    }}
+                    className="w-full h-0.5 appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, rgba(184,115,51,0.3) 0%, rgba(184,115,51,0.8) ${(exposure + 100) / 2}%, rgba(184,115,51,0.3) ${(exposure + 100) / 2}%, rgba(184,115,51,0.3) 100%)`,
+                      accentColor: '#b87333',
+                    }}
+                  />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-2 bg-copper/40 pointer-events-none" />
+                </div>
+                <Icon name="Sun" size={16} className="text-copper/70 flex-shrink-0" />
               </div>
-              <span className="font-mono-film text-copper/40 text-xs">FILM</span>
+              <span className="font-mono-film text-copper/40 text-xs tracking-widest">
+                {exposure > 0 ? `+${exposure}` : exposure} EV
+              </span>
             </div>
 
-            {/* Shutter — hold to focus, release to shoot */}
-            <button
-              onPointerDown={e => { e.preventDefault(); startFocus(); }}
-              onPointerUp={e => { e.preventDefault(); releaseFocus(); }}
-              onPointerLeave={e => { e.preventDefault(); releaseFocus(); }}
-              className="shutter-btn w-10 h-10 rounded-full cursor-pointer select-none"
-              style={{ touchAction: 'none' }}
-              title="Держи — фокус, отпусти — снимок"
-            />
+            {/* Controls row */}
+            <div className="flex items-center justify-between px-8 pb-6 pt-1">
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex gap-1">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="w-2.5 h-1 rounded-sm bg-zinc-800 border border-zinc-700" />
+                  ))}
+                </div>
+                <span className="font-mono-film text-copper/30 text-xs">FILM</span>
+              </div>
 
-            {/* Stop */}
+              {/* Shutter */}
+              <button
+                onPointerDown={e => { e.preventDefault(); startFocus(); }}
+                onPointerUp={e => { e.preventDefault(); releaseFocus(); }}
+                onPointerLeave={e => { e.preventDefault(); releaseFocus(); }}
+                className="shutter-btn w-14 h-14 rounded-full cursor-pointer select-none"
+                style={{ touchAction: 'none' }}
+                title="Держи — фокус, отпусти — снимок"
+              />
+
+              {/* Stop */}
+              <button
+                onClick={stopCamera}
+                className="flex flex-col items-center gap-1 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full border border-zinc-800 flex items-center justify-center">
+                  <Icon name="X" size={13} className="text-zinc-600" />
+                </div>
+                <span className="font-mono-film text-xs text-zinc-700">СТОП</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          /* When camera is off — show start button in panel */
+          <div className="flex items-center justify-center py-8">
             <button
-              onClick={stopCamera}
-              className="flex flex-col items-center gap-1 transition-colors"
+              onClick={startCamera}
+              className="flex flex-col items-center gap-2"
             >
-              <div className="w-8 h-8 rounded-full border border-zinc-700 flex items-center justify-center">
-                <Icon name="X" size={13} className="text-zinc-500" />
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'radial-gradient(circle at 35% 35%, #6b6b6b, #3a3a3a 50%, #1a1a1a)',
+                  border: '2px solid #555',
+                  boxShadow: '0 0 0 4px #1a1a1a, 0 0 0 6px #555',
+                }}
+              >
+                <Icon name="Power" size={20} className="text-copper/80" />
               </div>
-              <span className="font-mono-film text-xs text-zinc-600">СТОП</span>
+              <span className="font-mono-film text-copper/50 text-xs tracking-widest">ВКЛЮЧИТЬ</span>
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
     </div>
   );
 }
