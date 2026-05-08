@@ -23,8 +23,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const exposureRef = useRef(0);
   const [contrast, setContrast] = useState(0); // -100..+100
   const contrastRef = useRef(0);
-  const [grain, setGrain] = useState(70); // 0..100
-  const grainRef = useRef(70);
+  const grainRef = useRef(100);
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -287,35 +286,6 @@ export default function Camera({ onCapture }: CameraProps) {
       >
         {isStreaming ? (
           <>
-            {/* Grain slider */}
-            <div className="flex flex-col items-center gap-1 px-10 pt-4 pb-1">
-              <div className="flex items-center gap-3 w-full">
-                <Icon name="Sparkles" size={12} className="text-copper/40 flex-shrink-0" />
-                <div className="relative flex-1">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={grain}
-                    onChange={e => {
-                      const v = Number(e.target.value);
-                      setGrain(v);
-                      grainRef.current = v;
-                    }}
-                    className="w-full h-0.5 appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, rgba(184,115,51,0.8) 0%, rgba(184,115,51,0.8) ${grain}%, rgba(184,115,51,0.3) ${grain}%, rgba(184,115,51,0.3) 100%)`,
-                      accentColor: '#b87333',
-                    }}
-                  />
-                </div>
-                <Icon name="Sparkles" size={16} className="text-copper/70 flex-shrink-0" />
-              </div>
-              <span className="font-mono-film text-copper/40 text-xs tracking-widest">
-                {grain} GRAIN
-              </span>
-            </div>
-
             {/* Contrast slider */}
             <div className="flex flex-col items-center gap-1 px-10 pt-2 pb-1">
               <div className="flex items-center gap-3 w-full">
