@@ -25,6 +25,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const contrastRef = useRef(0);
   const [grain, setGrain] = useState(100); // 0..200
   const grainRef = useRef(100);
+  const [exposureLocked, setExposureLocked] = useState(false);
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -245,9 +246,17 @@ export default function Camera({ onCapture }: CameraProps) {
             style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)' }}
           />
           <div className="absolute top-3 left-0 right-0 px-5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-red-600 animate-blink" />
-              <span className="font-mono-film text-xs text-white/70">REC</span>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-red-600 animate-blink" />
+                <span className="font-mono-film text-xs text-white/70">REC</span>
+              </div>
+              <button
+                onClick={stopCamera}
+                className="flex items-center justify-center w-5 h-5 rounded-full bg-black/40 border border-zinc-700 ml-1"
+              >
+                <Icon name="X" size={10} className="text-zinc-400" />
+              </button>
             </div>
             <span className="font-mono-film text-xs text-copper/70">{time}</span>
             {!installed && (
@@ -361,6 +370,7 @@ export default function Camera({ onCapture }: CameraProps) {
                     min={-100}
                     max={100}
                     value={exposure}
+                    disabled={exposureLocked}
                     onChange={e => {
                       const v = Number(e.target.value);
                       setExposure(v);
@@ -404,15 +414,15 @@ export default function Camera({ onCapture }: CameraProps) {
                 title="Снять фото"
               />
 
-              {/* Stop */}
+              {/* Exposure lock */}
               <button
-                onClick={stopCamera}
+                onClick={() => setExposureLocked(l => !l)}
                 className="flex flex-col items-center gap-1 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full border border-zinc-800 flex items-center justify-center">
-                  <Icon name="X" size={13} className="text-zinc-600" />
+                <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${exposureLocked ? 'border-copper bg-copper/10' : 'border-zinc-800'}`}>
+                  <Icon name={exposureLocked ? 'Lock' : 'LockOpen'} size={13} className={exposureLocked ? 'text-copper' : 'text-zinc-600'} />
                 </div>
-                <span className="font-mono-film text-xs text-zinc-700">СТОП</span>
+                <span className={`font-mono-film text-xs transition-colors ${exposureLocked ? 'text-copper/70' : 'text-zinc-700'}`}>AE-L</span>
               </button>
             </div>
           </>
