@@ -294,14 +294,13 @@ export default function Camera({ onCapture }: CameraProps) {
               style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)' }}
             />
             <div className="absolute top-3 left-0 right-0 px-5 flex items-center justify-between">
-              <div className="w-10" />
               <a
                 href="https://vk.com/fotoklubpro"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="pointer-events-auto"
+                className="pointer-events-auto flex items-center gap-1"
               >
-                <span className="font-mono-film text-copper/40 text-xs">УРОКИ ФОТОГРАФИИ</span>
+                <span className="font-mono-film text-copper/60 text-xs">УРОКИ ФОТОГРАФИИ</span>
               </a>
               {!installed && (
                 <button
