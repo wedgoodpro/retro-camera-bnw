@@ -39,10 +39,6 @@ export default function Index() {
           {justCaptured && (
             <span className="font-mono-film text-copper text-xs animate-fade-in">✦ СНЯТО</span>
           )}
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-copper/60" />
-            <span className="font-mono-film text-zinc-500 text-xs">{shotCount} кадров</span>
-          </div>
         </div>
       </header>
 

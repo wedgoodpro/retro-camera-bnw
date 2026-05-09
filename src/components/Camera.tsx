@@ -302,22 +302,33 @@ export default function Camera({ onCapture }: CameraProps) {
               >
                 <span className="font-mono-film text-copper/60 text-xs">УРОКИ ФОТОГРАФИИ</span>
               </a>
-              {!installed && (
+              <div className="flex items-center gap-3 pointer-events-auto">
                 <button
-                  className="pointer-events-auto flex items-center gap-1"
+                  className="flex items-center gap-1"
                   onClick={() => {
-                    if (installPrompt) {
-                      (installPrompt as BeforeInstallPromptEvent).prompt();
-                      (installPrompt as BeforeInstallPromptEvent).userChoice.then(() => setInstallPrompt(null));
-                    } else {
-                      alert('Чтобы установить: нажми "Поделиться" → "На экран Домой" (iOS) или меню ⋮ → "Добавить на экран" (Android)');
-                    }
+                    navigator.clipboard.writeText('https://wedgoodpro.github.io/retro-camera-bnw/').catch(() => {});
                   }}
                 >
-                  <Icon name="Download" size={11} className="text-copper/60" />
-                  <span className="font-mono-film text-xs text-copper/60">УСТАНОВИТЬ</span>
+                  <Icon name="Share2" size={11} className="text-copper/60" />
+                  <span className="font-mono-film text-xs text-copper/60">ПОДЕЛИТЬСЯ</span>
                 </button>
-              )}
+                {!installed && (
+                  <button
+                    className="flex items-center gap-1"
+                    onClick={() => {
+                      if (installPrompt) {
+                        (installPrompt as BeforeInstallPromptEvent).prompt();
+                        (installPrompt as BeforeInstallPromptEvent).userChoice.then(() => setInstallPrompt(null));
+                      } else {
+                        alert('Чтобы установить: нажми "Поделиться" → "На экран Домой" (iOS) или меню ⋮ → "Добавить на экран" (Android)');
+                      }
+                    }}
+                  >
+                    <Icon name="Download" size={11} className="text-copper/60" />
+                    <span className="font-mono-film text-xs text-copper/60">УСТАНОВИТЬ</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
