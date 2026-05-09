@@ -356,11 +356,6 @@ export default function Camera({ onCapture }: CameraProps) {
                 rel="noopener noreferrer"
                 className="flex flex-col items-center gap-1"
               >
-                <div className="flex gap-1">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="w-2.5 h-1 rounded-sm bg-zinc-800 border border-zinc-700" />
-                  ))}
-                </div>
                 <span className="font-mono-film text-copper/30 text-xs text-center leading-tight">УРОКИ<br/>ФОТОГРАФИИ</span>
               </a>
 
@@ -370,30 +365,7 @@ export default function Camera({ onCapture }: CameraProps) {
                 title="Снять фото"
               />
 
-              <button
-                onClick={async () => {
-                  const next = !exposureLockedRef.current;
-                  exposureLockedRef.current = next;
-                  setExposureLocked(next);
-                  const track = videoTrackRef.current;
-                  if (track) {
-                    const caps = track.getCapabilities() as Record<string, unknown>;
-                    if (caps.exposureMode) {
-                      try {
-                        await track.applyConstraints({
-                          advanced: [{ exposureMode: next ? 'manual' : 'continuous' } as MediaTrackConstraintSet],
-                        });
-                      } catch { /* не поддерживается — работает через brightnessOffset */ }
-                    }
-                  }
-                }}
-                className="flex flex-col items-center gap-1 transition-colors"
-              >
-                <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${exposureLocked ? 'border-copper bg-copper/10' : 'border-zinc-800'}`}>
-                  <Icon name={exposureLocked ? 'Lock' : 'LockOpen'} size={13} className={exposureLocked ? 'text-copper' : 'text-zinc-600'} />
-                </div>
-                <span className={`font-mono-film text-xs transition-colors ${exposureLocked ? 'text-copper/70' : 'text-zinc-700'}`}>AE-L</span>
-              </button>
+              <div className="w-16" />
             </div>
           </>
         ) : (
