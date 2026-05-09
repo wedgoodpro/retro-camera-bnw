@@ -60,11 +60,23 @@ export default function Camera({ onCapture }: CameraProps) {
         return;
       }
 
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      // Crop video to 4:3 from center
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const targetRatio = 4 / 3;
+      let srcX = 0, srcY = 0, srcW = vw, srcH = vh;
+      if (vw / vh > targetRatio) {
+        srcW = Math.round(vh * targetRatio);
+        srcX = Math.round((vw - srcW) / 2);
+      } else {
+        srcH = Math.round(vw / targetRatio);
+        srcY = Math.round((vh - srcH) / 2);
       }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (canvas.width !== srcW || canvas.height !== srcH) {
+        canvas.width = srcW;
+        canvas.height = srcH;
+      }
+      ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
@@ -108,7 +120,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1920 } }
+        video: { facingMode: 'environment', width: { ideal: 1440 }, height: { ideal: 1080 }, aspectRatio: { ideal: 4/3 } }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -186,7 +198,7 @@ export default function Camera({ onCapture }: CameraProps) {
         style={{
           display: isStreaming ? 'block' : 'none',
           background: '#000',
-          transform: rotated ? 'rotate(90deg) scale(1.778)' : 'none',
+          transform: rotated ? 'rotate(90deg) scale(1.333)' : 'none',
           transition: 'transform 0.3s ease',
         }}
       />
