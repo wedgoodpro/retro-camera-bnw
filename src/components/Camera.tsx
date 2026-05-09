@@ -333,7 +333,7 @@ export default function Camera({ onCapture }: CameraProps) {
                 <div className="relative flex-1">
                   <input
                     type="range" min={-100} max={100} value={exposure}
-                    disabled={exposureLocked}
+
                     onChange={e => { const v = Number(e.target.value); setExposure(v); exposureRef.current = v; }}
                     className="w-full h-0.5 appearance-none cursor-pointer"
                     style={{ background: sliderBg(exposure, -100, 100), accentColor: '#b87333' }}
