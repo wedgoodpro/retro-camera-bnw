@@ -186,7 +186,7 @@ export default function Camera({ onCapture }: CameraProps) {
         style={{
           display: isStreaming ? 'block' : 'none',
           background: '#000',
-          transform: rotated ? 'rotate(90deg)' : 'none',
+          transform: rotated ? 'rotate(90deg) scale(1.778)' : 'none',
           transition: 'transform 0.3s ease',
         }}
       />
