@@ -42,6 +42,8 @@ export default function Camera({ onCapture }: CameraProps) {
   const [grain, setGrain] = useState(100);
   const grainRef = useRef(100);
   const [exposureLocked, setExposureLocked] = useState(false);
+  const exposureLockedRef = useRef(false);
+  const lockedBrightnessRef = useRef<number | null>(null);
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -75,6 +77,28 @@ export default function Camera({ onCapture }: CameraProps) {
       }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      // Sample average brightness (every 16th pixel for speed)
+      let sum = 0, count = 0;
+      for (let i = 0; i < data.length; i += 64) {
+        sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        count++;
+      }
+      const avgBrightness = sum / count;
+
+      // AE-L: lock brightness by computing offset vs locked frame
+      let brightnessOffset = 0;
+      if (exposureLockedRef.current) {
+        if (lockedBrightnessRef.current === null) {
+          lockedBrightnessRef.current = avgBrightness;
+        }
+        brightnessOffset = lockedBrightnessRef.current - avgBrightness;
+      } else {
+        lockedBrightnessRef.current = null;
+      }
+
       // Rebuild LUT only when controls change
       const curContrast = contrastRef.current;
       const curExposure = exposureRef.current;
@@ -84,14 +108,12 @@ export default function Camera({ onCapture }: CameraProps) {
         lut = buildLUT(3.8 + curContrast * 0.02, curExposure * 0.8);
       }
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
       const grainAmp = grainRef.current * 0.8;
 
       for (let i = 0; i < data.length; i += 4) {
         const gray = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
         const noise = (Math.random() - 0.5) * grainAmp;
-        const final = Math.min(255, Math.max(0, lut[gray] + noise));
+        const final = Math.min(255, Math.max(0, lut[gray] + noise + brightnessOffset));
         data[i] = final;
         data[i + 1] = final;
         data[i + 2] = final;
@@ -346,7 +368,7 @@ export default function Camera({ onCapture }: CameraProps) {
               />
 
               <button
-                onClick={() => setExposureLocked(l => !l)}
+                onClick={() => setExposureLocked(l => { exposureLockedRef.current = !l; return !l; })}
                 className="flex flex-col items-center gap-1 transition-colors"
               >
                 <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${exposureLocked ? 'border-copper bg-copper/10' : 'border-zinc-800'}`}>
