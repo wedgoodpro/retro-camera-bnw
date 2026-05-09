@@ -273,19 +273,11 @@ export default function Camera({ onCapture }: CameraProps) {
             )}
           </div>
 
-          {/* Corner brackets */}
-          <div className="absolute top-10 left-5 w-7 h-7 border-t-2 border-l-2 border-copper/60" />
-          <div className="absolute top-10 right-5 w-7 h-7 border-t-2 border-r-2 border-copper/60" />
+
         </div>
       )}
 
-      {/* Bottom corner brackets */}
-      {isStreaming && (
-        <div className="absolute bottom-3 left-0 right-0 z-10 pointer-events-none">
-          <div className="absolute bottom-0 left-5 w-7 h-7 border-b-2 border-l-2 border-copper/60" />
-          <div className="absolute bottom-0 right-5 w-7 h-7 border-b-2 border-r-2 border-copper/60" />
-        </div>
-      )}
+
 
       </div>{/* end viewfinder */}
 
