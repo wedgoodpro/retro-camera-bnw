@@ -44,6 +44,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const [exposureLocked, setExposureLocked] = useState(false);
   const exposureLockedRef = useRef(false);
   const lockedBrightnessRef = useRef<number | null>(null);
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -137,6 +138,8 @@ export default function Camera({ onCapture }: CameraProps) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
+        const track = stream.getVideoTracks()[0];
+        videoTrackRef.current = track;
         videoRef.current.onloadedmetadata = () => {
           startPreviewLoop(videoRef.current!);
         };
@@ -368,7 +371,22 @@ export default function Camera({ onCapture }: CameraProps) {
               />
 
               <button
-                onClick={() => setExposureLocked(l => { exposureLockedRef.current = !l; return !l; })}
+                onClick={async () => {
+                  const next = !exposureLockedRef.current;
+                  exposureLockedRef.current = next;
+                  setExposureLocked(next);
+                  const track = videoTrackRef.current;
+                  if (track) {
+                    const caps = track.getCapabilities() as Record<string, unknown>;
+                    if (caps.exposureMode) {
+                      try {
+                        await track.applyConstraints({
+                          advanced: [{ exposureMode: next ? 'manual' : 'continuous' } as MediaTrackConstraintSet],
+                        });
+                      } catch { /* не поддерживается — работает через brightnessOffset */ }
+                    }
+                  }
+                }}
                 className="flex flex-col items-center gap-1 transition-colors"
               >
                 <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${exposureLocked ? 'border-copper bg-copper/10' : 'border-zinc-800'}`}>
