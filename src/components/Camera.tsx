@@ -84,15 +84,10 @@ export default function Camera({ onCapture }: CameraProps) {
     let lastContrast = contrastRef.current;
     let lastExposure = exposureRef.current;
     let lut = buildLUT(3.8 + lastContrast * 0.02, lastExposure * 0.8);
-    let ready = false;
-
     const render = () => {
-      if (!ready) {
-        if (video.readyState < 2) {
-          animFrameRef.current = requestAnimationFrame(render);
-          return;
-        }
-        ready = true;
+      if (video.readyState < 2 || video.paused) {
+        animFrameRef.current = requestAnimationFrame(render);
+        return;
       }
 
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
@@ -164,8 +159,9 @@ export default function Camera({ onCapture }: CameraProps) {
         video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1920 } }
       });
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        const video = videoRef.current;
+        video.srcObject = stream;
+
         const track = stream.getVideoTracks()[0];
         videoTrackRef.current = track;
         const caps = track.getCapabilities() as Record<string, { min?: number; max?: number; step?: number }>;
@@ -176,11 +172,20 @@ export default function Camera({ onCapture }: CameraProps) {
             step: caps.exposureCompensation.step ?? 0.1,
           };
         }
-        videoRef.current.onloadedmetadata = () => {
-          startPreviewLoop(videoRef.current!);
+
+        const kick = () => {
+          video.play().catch(() => {});
+          startPreviewLoop(video);
+          setIsStreaming(true);
+          setError(null);
         };
-        setIsStreaming(true);
-        setError(null);
+
+        // Если метаданные уже загружены — стартуем сразу, иначе ждём событие
+        if (video.readyState >= 1) {
+          kick();
+        } else {
+          video.onloadedmetadata = kick;
+        }
       }
     } catch {
       setError('Нет доступа к камере');
@@ -197,6 +202,18 @@ export default function Camera({ onCapture }: CameraProps) {
 
   useEffect(() => { startCamera(); }, [startCamera]);
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  // Восстанавливаем видео когда пользователь возвращается на вкладку
+  useEffect(() => {
+    const onVisible = () => {
+      const video = videoRef.current;
+      if (video && video.srcObject && video.paused) {
+        video.play().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   const capturePhoto = useCallback(() => {
     const canvas = previewCanvasRef.current;
