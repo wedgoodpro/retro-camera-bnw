@@ -196,6 +196,17 @@
     z-index: 4;
   }
 
+  /* Слайдер с CSS-переменной --slider-pct вместо inline строк */
+  .slider-copper {
+    background: linear-gradient(
+      to right,
+      rgba(184, 115, 51, 0.3) 0%,
+      rgba(184, 115, 51, 0.8) var(--slider-pct),
+      rgba(184, 115, 51, 0.3) var(--slider-pct),
+      rgba(184, 115, 51, 0.3) 100%
+    );
+  }
+
   .animate-shutter-flash {
     animation: shutter-flash 0.3s ease-out;
   }

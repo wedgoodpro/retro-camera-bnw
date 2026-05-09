@@ -10,9 +10,10 @@ interface CameraProps {
   onCapture: (photoData: string) => void;
 }
 
-// Precomputed LUT for grayscale + matte curve (no Math.sin/Math.pow per pixel)
+// Переиспользуемый буфер LUT — не создаём новый массив при каждом вызове
+const lutBuffer = new Uint8ClampedArray(256);
+
 function buildLUT(contrastMult: number, expShift: number): Uint8ClampedArray {
-  const lut = new Uint8ClampedArray(256);
   const blackPoint = 55;
   const whitePoint = 210;
   const range = whitePoint - blackPoint;
@@ -22,9 +23,16 @@ function buildLUT(contrastMult: number, expShift: number): Uint8ClampedArray {
     const shadowed = soft < 0.75 ? Math.pow(soft / 0.75, 2.0) * 0.75 : soft;
     const contrasted = Math.min(255, Math.max(0, shadowed * 255));
     const matte = blackPoint + (contrasted / 255) * range;
-    lut[g] = Math.min(255, Math.max(0, matte + expShift));
+    lutBuffer[g] = Math.min(255, Math.max(0, matte + expShift));
   }
-  return lut;
+  return lutBuffer;
+}
+
+// Предгенерированный шум-массив — заполняется один раз, используется циклически
+const NOISE_SIZE = 65536;
+const noiseTable = new Float32Array(NOISE_SIZE);
+for (let i = 0; i < NOISE_SIZE; i++) {
+  noiseTable[i] = (Math.random() - 0.5);
 }
 
 export default function Camera({ onCapture }: CameraProps) {
@@ -35,12 +43,15 @@ export default function Camera({ onCapture }: CameraProps) {
   const [isFlashing, setIsFlashing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shotCount, setShotCount] = useState(0);
+
+  // Слайдеры: state только для UI (слайдер), ref — для render loop
   const [exposure, setExposure] = useState(0);
   const exposureRef = useRef(0);
   const [contrast, setContrast] = useState(-100);
   const contrastRef = useRef(-100);
   const [grain, setGrain] = useState(100);
   const grainRef = useRef(100);
+
   const [exposureLocked, setExposureLocked] = useState(false);
   const exposureLockedRef = useRef(false);
   const lockedBrightnessRef = useRef<number | null>(null);
@@ -50,11 +61,18 @@ export default function Camera({ onCapture }: CameraProps) {
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
 
+  // Позиция в таблице шума — инкрементируется per-pixel
+  const noiseIdxRef = useRef(0);
+
   useEffect(() => {
-    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
-    window.addEventListener('beforeinstallprompt', handler);
-    window.addEventListener('appinstalled', () => setInstalled(true));
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    const beforeHandler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    const installedHandler = () => setInstalled(true);
+    window.addEventListener('beforeinstallprompt', beforeHandler);
+    window.addEventListener('appinstalled', installedHandler);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', beforeHandler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
   }, []);
 
   const startPreviewLoop = useCallback((video: HTMLVideoElement) => {
@@ -66,11 +84,15 @@ export default function Camera({ onCapture }: CameraProps) {
     let lastContrast = contrastRef.current;
     let lastExposure = exposureRef.current;
     let lut = buildLUT(3.8 + lastContrast * 0.02, lastExposure * 0.8);
+    let ready = false;
 
     const render = () => {
-      if (video.readyState < 2) {
-        animFrameRef.current = requestAnimationFrame(render);
-        return;
+      if (!ready) {
+        if (video.readyState < 2) {
+          animFrameRef.current = requestAnimationFrame(render);
+          return;
+        }
+        ready = true;
       }
 
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
@@ -82,7 +104,7 @@ export default function Camera({ onCapture }: CameraProps) {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      // Sample average brightness (every 16th pixel for speed)
+      // Замер яркости (каждый 16-й пиксель = каждые 64 байта)
       let sum = 0, count = 0;
       for (let i = 0; i < data.length; i += 64) {
         sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
@@ -90,7 +112,7 @@ export default function Camera({ onCapture }: CameraProps) {
       }
       const avgBrightness = sum / count;
 
-      // AE-L: lock brightness by computing offset vs locked frame
+      // AE-L
       let brightnessOffset = 0;
       if (exposureLockedRef.current) {
         if (lockedBrightnessRef.current === null) {
@@ -101,7 +123,7 @@ export default function Camera({ onCapture }: CameraProps) {
         lockedBrightnessRef.current = null;
       }
 
-      // Rebuild LUT only when controls change
+      // Перестраиваем LUT только при изменении контролов
       const curContrast = contrastRef.current;
       const curExposure = exposureRef.current;
       if (curContrast !== lastContrast || curExposure !== lastExposure) {
@@ -111,15 +133,20 @@ export default function Camera({ onCapture }: CameraProps) {
       }
 
       const grainAmp = grainRef.current * 0.8;
+      let ni = noiseIdxRef.current;
 
+      // Применяем LUT + шум из предгенерированной таблицы
       for (let i = 0; i < data.length; i += 4) {
         const gray = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
-        const noise = (Math.random() - 0.5) * grainAmp;
+        const noise = noiseTable[ni & (NOISE_SIZE - 1)] * grainAmp;
+        ni++;
         const final = Math.min(255, Math.max(0, lut[gray] + noise + brightnessOffset));
         data[i] = final;
         data[i + 1] = final;
         data[i + 2] = final;
       }
+      noiseIdxRef.current = ni & (NOISE_SIZE - 1);
+
       ctx.putImageData(imageData, 0, 0);
       animFrameRef.current = requestAnimationFrame(render);
     };
@@ -180,17 +207,19 @@ export default function Camera({ onCapture }: CameraProps) {
     link.download = `obscura_${Date.now()}.jpg`;
     link.click();
     setIsFlashing(true);
-    setTimeout(() => setIsFlashing(false), 300);
+    const t = setTimeout(() => setIsFlashing(false), 300);
     setShotCount(prev => prev + 1);
     onCapture(photoData);
+    return () => clearTimeout(t);
   }, [isStreaming, onCapture]);
 
   capturePhotoRef.current = capturePhoto;
 
-  const sliderBg = (val: number, min: number, max: number) => {
-    const pct = ((val - min) / (max - min)) * 100;
-    return `linear-gradient(to right, rgba(184,115,51,0.3) 0%, rgba(184,115,51,0.8) ${pct}%, rgba(184,115,51,0.3) ${pct}%, rgba(184,115,51,0.3) 100%)`;
-  };
+  // sliderBg через CSS custom property — не строит строку при каждом рендере
+  const sliderStyle = (val: number, min: number, max: number): React.CSSProperties => ({
+    '--slider-pct': `${((val - min) / (max - min)) * 100}%`,
+    accentColor: '#b87333',
+  } as React.CSSProperties);
 
   return (
     <div
@@ -220,7 +249,7 @@ export default function Camera({ onCapture }: CameraProps) {
 
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950">
-            <Icon name="CameraOff" size={32} className="text-red-700/70" />
+            <Icon name="CameraOff" size={28} className="text-red-700/50" />
             <p className="font-mono-film text-red-700/70 text-xs text-center px-8">{error}</p>
           </div>
         )}
@@ -325,7 +354,6 @@ export default function Camera({ onCapture }: CameraProps) {
                       const track = videoTrackRef.current;
                       const range = expRangeRef.current;
                       if (track && range) {
-                        // Маппим -100..100 → реальный диапазон камеры
                         const mapped = range.min + ((v + 100) / 200) * (range.max - range.min);
                         const stepped = Math.round(mapped / range.step) * range.step;
                         track.applyConstraints({ advanced: [{ exposureCompensation: stepped } as MediaTrackConstraintSet] }).catch(() => {});
@@ -333,8 +361,8 @@ export default function Camera({ onCapture }: CameraProps) {
                         exposureRef.current = v;
                       }
                     }}
-                    className="w-full h-0.5 appearance-none cursor-pointer"
-                    style={{ background: sliderBg(exposure, -100, 100), accentColor: '#b87333' }}
+                    className="w-full h-0.5 appearance-none cursor-pointer slider-copper"
+                    style={sliderStyle(exposure, -100, 100)}
                   />
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-2 bg-copper/40 pointer-events-none" />
                 </div>
@@ -350,9 +378,13 @@ export default function Camera({ onCapture }: CameraProps) {
                 <div className="relative flex-1">
                   <input
                     type="range" min={0} max={200} value={grain}
-                    onChange={e => { const v = Number(e.target.value); setGrain(v); grainRef.current = v; }}
-                    className="w-full h-0.5 appearance-none cursor-pointer"
-                    style={{ background: sliderBg(grain, 0, 200), accentColor: '#b87333' }}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setGrain(v);
+                      grainRef.current = v;
+                    }}
+                    className="w-full h-0.5 appearance-none cursor-pointer slider-copper"
+                    style={sliderStyle(grain, 0, 200)}
                   />
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-2 bg-copper/40 pointer-events-none" />
                 </div>
@@ -368,9 +400,13 @@ export default function Camera({ onCapture }: CameraProps) {
                 <div className="relative flex-1">
                   <input
                     type="range" min={-100} max={100} value={contrast}
-                    onChange={e => { const v = Number(e.target.value); setContrast(v); contrastRef.current = v; }}
-                    className="w-full h-0.5 appearance-none cursor-pointer"
-                    style={{ background: sliderBg(contrast, -100, 100), accentColor: '#b87333' }}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setContrast(v);
+                      contrastRef.current = v;
+                    }}
+                    className="w-full h-0.5 appearance-none cursor-pointer slider-copper"
+                    style={sliderStyle(contrast, -100, 100)}
                   />
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-px h-2 bg-copper/40 pointer-events-none" />
                 </div>
