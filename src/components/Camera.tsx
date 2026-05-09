@@ -264,6 +264,14 @@ export default function Camera({ onCapture }: CameraProps) {
                 </div>
                 <span className="font-mono-film text-xs text-zinc-600">СТОП</span>
               </button>
+              <a
+                href="https://vk.com/fotoklubpro"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pointer-events-auto"
+              >
+                <span className="font-mono-film text-copper/40 text-xs text-center leading-tight">УРОКИ<br/>ФОТОГРАФИИ</span>
+              </a>
               {!installed && (
                 <button
                   className="pointer-events-auto flex items-center gap-1"
@@ -349,23 +357,12 @@ export default function Camera({ onCapture }: CameraProps) {
             </div>
 
             {/* Controls row */}
-            <div className="flex items-center justify-between px-8 pb-6 pt-1">
-              <a
-                href="https://vk.com/fotoklubpro"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-1"
-              >
-                <span className="font-mono-film text-copper/30 text-xs text-center leading-tight">УРОКИ<br/>ФОТОГРАФИИ</span>
-              </a>
-
+            <div className="flex items-center justify-center px-8 pb-6 pt-1">
               <button
                 onClick={capturePhoto}
                 className="shutter-btn w-14 h-14 rounded-full cursor-pointer"
                 title="Снять фото"
               />
-
-              <div className="w-16" />
             </div>
           </>
         ) : (
