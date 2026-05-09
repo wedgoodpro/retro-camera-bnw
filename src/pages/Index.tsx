@@ -30,8 +30,7 @@ export default function Index() {
             <Icon name="Aperture" size={14} className="text-black" />
           </div>
           <div>
-            <h1 className="font-special text-copper text-lg tracking-widest leading-none">OBSCURA</h1>
-            <p className="font-mono-film text-zinc-600 text-xs tracking-wider">VINTAGE CAMERA</p>
+            <h1 className="font-special text-copper text-lg tracking-widest leading-none">РЕТРО КАМЕРА</h1>
           </div>
         </div>
 
