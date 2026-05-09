@@ -26,6 +26,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const [grain, setGrain] = useState(100); // 0..200
   const grainRef = useRef(100);
   const [exposureLocked, setExposureLocked] = useState(false);
+  const [rotated, setRotated] = useState(false);
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -182,7 +183,12 @@ export default function Camera({ onCapture }: CameraProps) {
       <canvas
         ref={previewCanvasRef}
         className="absolute inset-0 w-full h-full object-contain"
-        style={{ display: isStreaming ? 'block' : 'none', background: '#000' }}
+        style={{
+          display: isStreaming ? 'block' : 'none',
+          background: '#000',
+          transform: rotated ? 'rotate(90deg)' : 'none',
+          transition: 'transform 0.3s ease',
+        }}
       />
 
       {/* Idle */}
@@ -203,16 +209,18 @@ export default function Camera({ onCapture }: CameraProps) {
         </div>
       )}
 
-      {/* Focus circle — decorative */}
+      {/* Focus circle — tappable, toggles rotation */}
       {isStreaming && (
-        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center z-10">
           <div
+            onClick={() => setRotated(r => !r)}
             style={{
               width: 80,
               height: 80,
               borderRadius: '50%',
               border: '1.5px solid rgba(255,255,255,0.25)',
               position: 'relative',
+              cursor: 'pointer',
             }}
           >
             {(['tl','tr','bl','br'] as const).map(pos => (
