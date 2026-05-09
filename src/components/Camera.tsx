@@ -301,6 +301,15 @@ export default function Camera({ onCapture }: CameraProps) {
       >
         {isStreaming ? (
           <>
+            {/* Shutter */}
+            <div className="flex items-center justify-center px-8 pt-4 pb-2">
+              <button
+                onClick={capturePhoto}
+                className="shutter-btn w-14 h-14 rounded-full cursor-pointer"
+                title="Снять фото"
+              />
+            </div>
+
             {/* Contrast */}
             <div className="flex flex-col items-center gap-1 px-10 pt-2 pb-1">
               <div className="flex items-center gap-3 w-full">
@@ -338,13 +347,12 @@ export default function Camera({ onCapture }: CameraProps) {
             </div>
 
             {/* Exposure */}
-            <div className="flex flex-col items-center gap-1 px-10 pt-2 pb-2">
+            <div className="flex flex-col items-center gap-1 px-10 pt-2 pb-4">
               <div className="flex items-center gap-3 w-full">
                 <Icon name="Sun" size={12} className="text-copper/40 flex-shrink-0" />
                 <div className="relative flex-1">
                   <input
                     type="range" min={-100} max={100} value={exposure}
-
                     onChange={e => { const v = Number(e.target.value); setExposure(v); exposureRef.current = v; }}
                     className="w-full h-0.5 appearance-none cursor-pointer"
                     style={{ background: sliderBg(exposure, -100, 100), accentColor: '#b87333' }}
@@ -354,15 +362,6 @@ export default function Camera({ onCapture }: CameraProps) {
                 <Icon name="Sun" size={16} className="text-copper/70 flex-shrink-0" />
               </div>
               <span className="font-mono-film text-copper/40 text-xs tracking-widest">ЭКСПОЗИЦИЯ</span>
-            </div>
-
-            {/* Controls row */}
-            <div className="flex items-center justify-center px-8 pb-6 pt-1">
-              <button
-                onClick={capturePhoto}
-                className="shutter-btn w-14 h-14 rounded-full cursor-pointer"
-                title="Снять фото"
-              />
             </div>
           </>
         ) : (
