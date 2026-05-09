@@ -246,19 +246,15 @@ export default function Camera({ onCapture }: CameraProps) {
             style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)' }}
           />
           <div className="absolute top-3 left-0 right-0 px-5 flex items-center justify-between">
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-red-600 animate-blink" />
-                <span className="font-mono-film text-xs text-white/70">REC</span>
-              </div>
-              <button
-                onClick={stopCamera}
-                className="flex items-center justify-center w-5 h-5 rounded-full bg-black/40 border border-zinc-700 ml-1"
-              >
+            <button
+              onClick={stopCamera}
+              className="flex flex-col items-center gap-0.5 pointer-events-auto"
+            >
+              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-black/40 border border-zinc-700">
                 <Icon name="X" size={10} className="text-zinc-400" />
-              </button>
-            </div>
-            <span className="font-mono-film text-xs text-copper/70">{time}</span>
+              </div>
+              <span className="font-mono-film text-xs text-zinc-600">СТОП</span>
+            </button>
             {!installed && (
               <button
                 className="pointer-events-auto flex items-center gap-1"
