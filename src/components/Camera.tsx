@@ -45,6 +45,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const exposureLockedRef = useRef(false);
   const lockedBrightnessRef = useRef<number | null>(null);
   const videoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const expRangeRef = useRef<{ min: number; max: number; step: number } | null>(null);
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -140,6 +141,14 @@ export default function Camera({ onCapture }: CameraProps) {
         videoRef.current.play();
         const track = stream.getVideoTracks()[0];
         videoTrackRef.current = track;
+        const caps = track.getCapabilities() as Record<string, { min?: number; max?: number; step?: number }>;
+        if (caps.exposureCompensation) {
+          expRangeRef.current = {
+            min: caps.exposureCompensation.min ?? -3,
+            max: caps.exposureCompensation.max ?? 3,
+            step: caps.exposureCompensation.step ?? 0.1,
+          };
+        }
         videoRef.current.onloadedmetadata = () => {
           startPreviewLoop(videoRef.current!);
         };
@@ -346,7 +355,20 @@ export default function Camera({ onCapture }: CameraProps) {
                 <div className="relative flex-1">
                   <input
                     type="range" min={-100} max={100} value={exposure}
-                    onChange={e => { const v = Number(e.target.value); setExposure(v); exposureRef.current = v; }}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setExposure(v);
+                      const track = videoTrackRef.current;
+                      const range = expRangeRef.current;
+                      if (track && range) {
+                        // Маппим -100..100 → реальный диапазон камеры
+                        const mapped = range.min + ((v + 100) / 200) * (range.max - range.min);
+                        const stepped = Math.round(mapped / range.step) * range.step;
+                        track.applyConstraints({ advanced: [{ exposureCompensation: stepped } as MediaTrackConstraintSet] }).catch(() => {});
+                      } else {
+                        exposureRef.current = v;
+                      }
+                    }}
                     className="w-full h-0.5 appearance-none cursor-pointer"
                     style={{ background: sliderBg(exposure, -100, 100), accentColor: '#b87333' }}
                   />
