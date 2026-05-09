@@ -270,7 +270,7 @@ export default function Camera({ onCapture }: CameraProps) {
                 rel="noopener noreferrer"
                 className="pointer-events-auto"
               >
-                <span className="font-mono-film text-copper/40 text-xs text-center leading-tight">УРОКИ<br/>ФОТОГРАФИИ</span>
+                <span className="font-mono-film text-copper/40 text-xs">УРОКИ ФОТОГРАФИИ</span>
               </a>
               {!installed && (
                 <button
