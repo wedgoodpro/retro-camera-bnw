@@ -26,7 +26,7 @@ export default function Camera({ onCapture }: CameraProps) {
   const [grain, setGrain] = useState(100); // 0..200
   const grainRef = useRef(100);
   const [exposureLocked, setExposureLocked] = useState(false);
-  const [rotated, setRotated] = useState(false);
+
   const capturePhotoRef = useRef<() => void>(() => {});
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -198,8 +198,7 @@ export default function Camera({ onCapture }: CameraProps) {
         style={{
           display: isStreaming ? 'block' : 'none',
           background: '#000',
-          transform: rotated ? 'rotate(90deg) scale(1.333)' : 'none',
-          transition: 'transform 0.3s ease',
+
         }}
       />
 
@@ -221,18 +220,16 @@ export default function Camera({ onCapture }: CameraProps) {
         </div>
       )}
 
-      {/* Focus circle — tappable, toggles rotation */}
+      {/* Focus circle — decorative */}
       {isStreaming && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
           <div
-            onClick={() => setRotated(r => !r)}
             style={{
               width: 80,
               height: 80,
               borderRadius: '50%',
               border: '1.5px solid rgba(255,255,255,0.25)',
               position: 'relative',
-              cursor: 'pointer',
             }}
           >
             {(['tl','tr','bl','br'] as const).map(pos => (
